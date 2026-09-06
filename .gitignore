@@ -1,0 +1,37 @@
+# macOS and local editor state
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Generated Xcode projects and local build products
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+.build/
+build/
+dist/
+*.xcuserstate
+xcuserdata/
+*.dmg
+*.xcarchive/
+
+# Signing material and local credentials
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.key
+*.pem
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.keychain
+*.keychain-db
+
+# Private runtime data and local agent state
+Manifests/
+LocalFixtures/
+.codex/
+.agents/

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A rule moved something it should not have, or another security issue
+    url: https://github.com/iamcaglardogan/maccleanerapp/security/advisories/new
+    about: Report potential data loss and security problems privately. Do not include personal paths or manifests in public issues.
