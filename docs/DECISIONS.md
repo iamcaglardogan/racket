@@ -28,7 +28,7 @@ Do not add scanning, removal, cleanup rules, permission prompts, or product view
 
 ## Verification status
 
-XcodeGen generation, the headless core build, and Swift 6 strict-concurrency typechecking of the empty app have passed locally. Full application build and test verification are pending CI with Xcode 16.4. XCTest requires a suitable toolchain; Command Line Tools alone are not sufficient on every installation. Do not treat an empty test suite as evidence that cleanup is safe. Phase 0 is not complete until its required build and CI checks have been verified.
+XcodeGen generation, the headless core build, and Swift 6 strict-concurrency typechecking of the empty app have passed locally. Full application build, empty test execution, and binary architecture verification are recorded in the [CI runs](https://github.com/iamcaglardogan/racket/actions/workflows/ci.yml) with Xcode 16.4. XCTest requires a suitable toolchain; Command Line Tools alone are not sufficient on every installation. Do not treat an empty test suite as evidence that cleanup is safe. The target minimum is macOS 14, while CI executes on macOS 15; runtime testing on macOS 14 is still outstanding. Phase 0 requires passing checks and the owner's review before Phase 1 can begin.
 
 Application presence does not verify a cleanup rule. Cache paths, project attribution, running-process behavior, and deletion safety have not been verified. No cache rule is enabled or shipped.
 

@@ -2,7 +2,7 @@
 
 A planned free, open-source, native macOS application for understanding disk usage and reviewing recoverable cleanup, with particular attention to creative work.
 
-**Status: Phase 0 scaffold, verification in progress.** RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. The scaffold establishes an empty application and headless core test target; scanning, cleanup, recovery, and product views are not implemented. Passing an empty test suite does not establish any of the safety guarantees below. Phase 0 is not yet accepted.
+**Status: Phase 0 scaffold implemented; owner review required.** RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. The scaffold establishes an empty application and headless core test target; scanning, cleanup, recovery, and product views are not implemented. Passing an empty test suite does not establish any of the safety guarantees below. Review the [latest build and test results](https://github.com/iamcaglardogan/racket/actions/workflows/ci.yml) before accepting this checkpoint.
 
 ## Product direction
 
@@ -45,7 +45,7 @@ Each phase stops for the owner's review before the next begins:
 
 | Phase | Deliverable | Status |
 | --- | --- | --- |
-| 0 | Repository structure, XcodeGen configuration, Makefile, CI, empty buildable targets | Scaffold in progress; build verification pending |
+| 0 | Repository structure, XcodeGen configuration, Makefile, CI, empty buildable targets | Implemented; requires passing CI and owner review |
 | 1 | PathGuard tests first, PathGuard, rule model and validation | Not started |
 | 2 | Headless scanner and synthetic fixtures | Not started |
 | 3 | Manifest, removal, and undo round trip | Not started |
@@ -75,7 +75,7 @@ make core-build
 
 `make core-test` runs the package's empty XCTest suite and requires a toolchain containing XCTest, such as full Xcode. Command Line Tools installations without XCTest can run `make core-build` only. These package commands do not validate the application or cleanup safety.
 
-XcodeGen project generation, the headless core build, and Swift 6 strict-concurrency typechecking of the empty app entry point have passed locally. Full application build and test-runner verification are pending GitHub Actions. CI uses macOS 15 with Xcode 16.4, runs both test entry points, and checks that the Release binary contains Apple Silicon and Intel architectures. Its results must be reviewed before accepting Phase 0.
+XcodeGen project generation, the headless core build, and Swift 6 strict-concurrency typechecking of the empty app entry point have passed locally. Full application and test-runner verification is recorded in GitHub Actions. CI uses macOS 15 with Xcode 16.4, runs both test entry points, and checks that the Release binary contains Apple Silicon and Intel architectures. The target minimum is macOS 14; a successful macOS 15 CI run does not establish runtime compatibility on macOS 14. Its results must be reviewed before accepting Phase 0.
 
 The build downloads XcodeGen 2.46.0 from its official release into ignored `.tools/` storage and verifies the published SHA-256 digest before extraction. This is a development tool, not an application dependency.
 
