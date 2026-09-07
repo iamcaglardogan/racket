@@ -56,7 +56,7 @@ XCTest requires a suitable toolchain; Command Line Tools alone are not sufficien
 
 Application presence does not verify a cleanup rule. Cache paths, project attribution, running-process behavior, and deletion safety have not been verified. No cache rule is enabled or shipped.
 
-Phase 2 has 144 XCTest cases in total. The updated core compiled locally, source guardrails passed, and 55 narrow metadata/walker/parser smoke cases passed against synthetic fixtures. [Phase 2 CI run 34164251933](https://github.com/iamcaglardogan/racket/actions/runs/34164251933) passed all 144 cases in both test runners, source guardrails, and the universal build; owner review remains pending. No test scans the real home directory or deletes its fixtures.
+Phase 2 has 146 XCTest cases in total. The updated core compiled locally, source guardrails passed, and 57 narrow metadata/walker/parser smoke cases passed against synthetic fixtures. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in both test runners, source guardrails, and the universal build; owner review remains pending. No test scans the real home directory or deletes its fixtures.
 
 ## Interface proposal for later review
 

@@ -1,6 +1,6 @@
 # Read-only scanning
 
-Phase 2 adds a headless scanner. [Phase 2 CI run 34164251933](https://github.com/iamcaglardogan/racket/actions/runs/34164251933) passed all 144 tests under SwiftPM and Xcode, source guardrails, and the universal app build; owner checkpoint review remains pending. It does not expose a product interface, move files, create recovery records, or add creative cleanup rules. The bundled rule document remains empty.
+Phase 2 adds a headless scanner. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 tests under SwiftPM and Xcode, source guardrails, and the universal app build; owner checkpoint review remains pending. It does not expose a product interface, move files, create recovery records, or add creative cleanup rules. The bundled rule document remains empty.
 
 ## Scope and output
 

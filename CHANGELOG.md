@@ -24,7 +24,7 @@ There are no releases yet.
 - Phase 2 read-only bulk directory walker, dataless metadata gates and per-thread materialization policy, with regular-file findings and visible skip/refusal/incomplete reasons.
 - Bounded scan orchestration, cancellation, per-module path progress, age/explicit backup filters, deterministic overlap and hard-link deduplication, and checked `UInt64` allocated-size totals.
 - Scanner architecture and verification notes separating allocated observations from reclaimable physical space, and synthetic metadata checks from cloud-provider integration.
-- 82 additional tests; the 144-test suite passed in SwiftPM and Xcode, alongside universal build and source guardrails.
+- 84 additional tests; the 146-test suite passed in SwiftPM and Xcode, alongside universal build and source guardrails.
 
 ### Changed
 
@@ -33,6 +33,10 @@ There are no releases yet.
 - Documented the Phase 0 build commands, local Xcode limitation, and separation between core checks and application validation.
 - Recorded owner acceptance of Phase 0 and prepared the Phase 1 trust-core checkpoint for separate pull-request review.
 - Recorded authorization to continue into Phase 2 on `phase-2-read-only-scanner`, based on the still-unmerged `phase-1-trust-core` branch.
+
+### Fixed
+
+- Scanner hard-link observations now bind to verified parent entries and fresh no-follow identities, rather than assuming a regular inode has one reverse-resolved path. Added name-cache and ordinary-file substitution regressions.
 
 ### Pending
 

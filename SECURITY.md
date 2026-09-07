@@ -10,7 +10,7 @@ If an eventual build moves an unexpected item to Trash, stop that removal sessio
 
 ## Supported versions
 
-There are no releases or distributed builds yet. The Phase 2 development branch adds headless read-only scanning to the path guard and rule validator; its 144-test suite and universal build passed CI. The bundled rule document remains empty, and there is no cleanup feature or product interface. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
+There are no releases or distributed builds yet. The Phase 2 development branch adds headless read-only scanning to the path guard and rule validator; its 146-test suite and universal build passed CI. The bundled rule document remains empty, and there is no cleanup feature or product interface. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
 
 ## Threat model
 

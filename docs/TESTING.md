@@ -17,14 +17,14 @@ Phase 1 tests are written before the PathGuard implementation. They exercise the
 
 ## Phase 2 checks
 
-The suite now contains 144 XCTest cases: 62 Phase 1 cases plus 3 backup-rule cases, 8 bulk-parser cases, 19 walker/integration cases, 24 engine cases, and 28 metadata/size cases. [Phase 2 CI run 34164251933](https://github.com/iamcaglardogan/racket/actions/runs/34164251933) passed all 144 cases in SwiftPM and Xcode, source checks, and the universal build. Local core compilation and 55 narrow scanner/size/parser smoke cases passed; these checks do not substitute for XCTest execution.
+The suite now contains 146 XCTest cases: 62 Phase 1 cases plus 3 backup-rule cases, 8 bulk-parser cases, 21 walker/integration cases, 24 engine cases, and 28 metadata/size cases. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in SwiftPM and Xcode, source checks, and the universal build. Local core compilation and 57 narrow scanner/size/parser smoke cases passed; these checks do not substitute for XCTest execution.
 
 | Boundary | Evidence |
 | --- | --- |
 | Exact findings | [Checked-in fixture tree](../Tests/Fixtures/scan-tree.json), materialized in a unique private temporary home; real walker and engine assert exact files and protected-path refusals |
 | Bulk records | Returned masks, optional error fields, dataless flags, Unicode names, malformed lengths/references, and missing attributes |
 | Traversal | Symlink farms and roots, protected children, FIFOs, missing origins, depth and entry limits, no directory findings, unchanged fixture contents |
-| Concurrent changes | Injected symlink substitution during size lookup and directory movement discard affected observations |
+| Concurrent changes | Injected symlink and ordinary-file substitutions during size lookup, directory movement, and hard-link name-cache churn verify entry identity and discard affected observations |
 | Dataless gates | Injected flags and cloud state prove explicit stat/size call ordering; policy success/error/nesting restores the prior thread state; walker emits a visible skip |
 | Allocation | Real sparse and resource-fork fixtures, missing/negative/large metadata, no logical-size fallback, and UInt64 overflow refusal |
 | Orchestration | Disabled rules, independent policy validation, exact age boundary, explicit backup option, bounded concurrency, cancellation, honest progress counts, deterministic duplicate/hard-link handling, and aggregate limits |
