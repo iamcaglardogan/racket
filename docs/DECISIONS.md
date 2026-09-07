@@ -28,7 +28,7 @@ The owner accepted Phase 0 by asking to continue. Its empty app entry point exis
 
 ## Phase 1 scope and review
 
-Phase 1 implements `SafeRoots`, read-only `PathGuard` validation and identity receipts, the declarative rule model and bundle loader, and source-policy checks. Its 62 XCTest cases comprise 31 PathGuard tests, including 10,000 generated adversarial path cases, and 31 rule tests. The checkpoint is prepared for a pull request from `phase-1-trust-core`; CI verification passed, owner review is pending, and it must remain unmerged until reviewed.
+Phase 1 implements `SafeRoots`, read-only `PathGuard` validation and identity receipts, the declarative rule model and bundle loader, and source-policy checks. Its 62 XCTest cases comprise 31 PathGuard tests, including 10,000 generated adversarial path cases, and 31 rule tests. CI verification passed, and the owner authorized Phase 2 after the checkpoint. [Pull request 1](https://github.com/iamcaglardogan/racket/pull/1) remains draft and unmerged; explicit approval of that merge is pending.
 
 Only `~/Library/Caches` and `~/Library/Logs` are compiled rule roots. A root may be a directory-contents rule location but never a removal candidate. Independent protected-name checks cover preferences, project files and packages, original media, autosaves, cloud paths, and `.git`. Additional roots need a separate safety justification and adversarial coverage.
 
@@ -38,6 +38,16 @@ The loader rejects unknown fields, duplicate JSON keys including escaped equival
 
 `PathGuard` uses metadata-only no-follow descriptor traversal, checks flags before `fstat`, and records item and ancestor identity for later revalidation. The checks do not authorize a directory's unexamined descendants or provide an atomic Trash operation. Actual dataless hydration behavior, live mount transitions, and removal races need further work in Phases 2 and 3. [Testing notes](TESTING.md) record those limits.
 
+## Phase 2 scope and review
+
+The owner asked to continue after the Phase 1 checkpoint. Work proceeds on `phase-2-read-only-scanner`, based on the still-unmerged Phase 1 branch. Its review must remain separate, and Phase 3 does not begin before this checkpoint is reviewed.
+
+The implementation uses bulk names/flags enumeration, compiled path boundaries, no-follow descriptors, a synchronous thread policy preventing dataless materialization, explicit metadata gates, regular-file findings, Foundation total allocated size, and bounded per-module orchestration. Read [SCANNING.md](SCANNING.md) for the decision rationale, limits, scheduling, and counting semantics.
+
+The optional schema-1 Boolean `skipExcludedFromBackup` defaults to false. No protected roots or match modes are added. Direct files have depth 1; directories at the maximum depth are reported as limited, never emitted as findings. Overlapping paths and hard links count once, with deterministic rule ownership. APFS clone sharing is not quantified, and reported allocation is not a claim of bytes that deletion would free.
+
+The brief's request to synthesize actual dataless files cannot be met by setting SF_DATALESS on ordinary unprivileged fixtures: the SDK marks it read-only. This checkpoint uses injected flags/cloud metadata and explicit operation-order tests, supplemented by actual policy-restoration and ordinary-file checks. Genuine provider integration remains a separate prerequisite to broader enabled rules and distribution.
+
 ## Verification status
 
 The Phase 1 headless core compiles locally. A limited prototype smoke check on this Mac passed ordinary-file validation, unchanged receipt revalidation, symlink-ancestor refusal, FIFO refusal, and replacement refusal. It is not execution of the complete XCTest suite. [CI run 34125991610](https://github.com/iamcaglardogan/racket/actions/runs/34125991610) passed all 62 tests through both SwiftPM and Xcode, source-policy checks, and the universal app build and architecture verification.
@@ -45,6 +55,8 @@ The Phase 1 headless core compiles locally. A limited prototype smoke check on t
 XCTest requires a suitable toolchain; Command Line Tools alone are not sufficient on every installation. CI uses Xcode 16.4 on macOS 15 and checks both the package and application test entry points and universal binary architectures. The target minimum is macOS 14; runtime testing on macOS 14 is still outstanding. The source-policy check rejects selected forbidden APIs and module imports as a guardrail, not a proof of all runtime behavior.
 
 Application presence does not verify a cleanup rule. Cache paths, project attribution, running-process behavior, and deletion safety have not been verified. No cache rule is enabled or shipped.
+
+Phase 2 has 144 XCTest cases in total. The updated core compiled locally, source guardrails passed, and 55 narrow metadata/walker/parser smoke cases passed against synthetic fixtures. [Phase 2 CI run 34164251933](https://github.com/iamcaglardogan/racket/actions/runs/34164251933) passed all 144 cases in both test runners, source guardrails, and the universal build; owner review remains pending. No test scans the real home directory or deletes its fixtures.
 
 ## Interface proposal for later review
 
