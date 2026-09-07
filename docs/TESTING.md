@@ -8,7 +8,7 @@ Phase 1 tests are written before the PathGuard implementation. They exercise the
 | --- | --- |
 | Compiled roots | Only descendants of the synthetic home's Library/Caches and Library/Logs can pass; roots themselves cannot be removal candidates |
 | Lexical paths | Generated traversal, prefix-collision, case, Unicode, repeated-separator, relative, and NUL/control inputs never authorize a path outside those roots |
-| Protected data | Preferences, source media, project databases, autosaves, cloud-container paths, and .git remain refused independently of allow-list matching |
+| Protected data | Preferences, recognized protected folder names such as Original Media and Auto-Save, protected project extensions, cloud-container paths, and .git remain refused independently of allow-list matching; arbitrary media files are not identified by content |
 | Filesystem identity | Symlink leaves, ancestors, safe-root replacements, dangling links, and loops are refused; no symlink target is followed |
 | Revalidation | An unchanged identity receipt passes; moving aside and replacing an item or ancestor invalidates the receipt |
 | Rule data | Unknown fields, malformed values, duplicate IDs, unexplained rules, invalid citations, unverified enabled rules, and unsafe paths fail validation |

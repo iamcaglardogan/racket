@@ -10,13 +10,15 @@ If an eventual build moves an unexpected item to Trash, stop that removal sessio
 
 ## Supported versions
 
-There are no releases or distributed builds yet. Phase 0 contains development scaffolding only, with no scanning or cleanup feature. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
+There are no releases or distributed builds yet. The Phase 1 review branch adds a read-only path guard and rule validation to the development scaffold; it has no scanning or cleanup feature. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
 
 ## Threat model
 
 The application will operate on valuable local files. Assets include source media, project databases, application settings, credentials, and recoverable items in Trash. Threats include incorrect rules, symlink escapes, path substitution races, malicious filesystem metadata, cloud placeholder hydration, incorrect ownership attribution, and compromised build inputs.
 
-Planned controls include compiled safe roots, independent protected roots, bounded walks, dataless checks, revalidation at removal, reviewable findings, pre-removal manifest writes, and a single removal gateway. None is implemented or tested yet.
+Phase 1 implements compiled cache/log roots, independent protected-path checks, metadata-only no-follow path walks, dataless flag checks, identity receipts and revalidation, and bounded, strict rule decoding. Synthetic tests cover path rejection and identity substitutions; live cloud-placeholder behavior and separately mounted volumes still need dedicated validation.
+
+A successful path check is an observation, not permission to remove unexamined descendants or a guarantee against all concurrent filesystem changes. Scanner traversal bounds, removal-time checks, reviewable findings, pre-removal manifest writes, and the single Trash gateway remain future work. See [the test plan and its limits](docs/TESTING.md).
 
 Rule JSON is untrusted input to validation. A rule must never authorize its own safe root. Prefer conservative refusal when ownership or path identity cannot be established.
 
@@ -30,6 +32,6 @@ Never ask users to grant Full Disk Access to Terminal or another general-purpose
 
 Telemetry is prohibited. The product decision about a default-off GitHub update check is pending; no application networking code exists.
 
-Signing keys, certificates, API tokens, and notarization credentials do not belong in this repository. CI uses read-only permissions, a commit-pinned checkout action, and a checksum-verified XcodeGen release. GitHub secret scanning, push protection, and private vulnerability reporting are enabled. Release signing and notarization will be configured after the owner supplies the required developer account setup.
+Signing keys, certificates, API tokens, and notarization credentials do not belong in this repository. CI uses read-only permissions, a commit-pinned checkout action, and a checksum-verified XcodeGen release. GitHub secret scanning, push protection, and private vulnerability reporting are enabled. Main requires the GitHub Actions build/test check on an up-to-date branch, including for administrators, and disallows force pushes and deletion. Release signing and notarization will be configured after the owner supplies the required developer account setup.
 
 The safety contract and its planned enforcement map are in [SAFETY.md](SAFETY.md).
