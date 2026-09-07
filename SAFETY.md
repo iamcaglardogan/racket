@@ -2,7 +2,7 @@
 
 This contract governs every future implementation change. When a feature conflicts with an invariant, the feature loses.
 
-**Implementation status:** documentation only. The test references below are planned destinations, not existing or passing tests. No scanning or removal code exists. Each planned control must become an executable check in its delivery phase before that phase can be accepted.
+**Implementation status:** Phase 0 scaffolding only. The enforcement test references below are planned destinations, not existing or passing safety tests. The initial empty test target only checks that test infrastructure can run. No scanning or removal code exists. Each planned control must become an executable check in its delivery phase before that phase can be accepted.
 
 1. **S1. Trash, never unlink.** All removals go through `FileManager.trashItem(at:resultingItemURL:)`, called only by `RemovalEngine`. No code path, test, temporary utility, or script may permanently delete user-visible content. The sole exception is the user's explicit Empty Trash action.
 2. **S2. Allow-list, not deny-list.** A deletable path must resolve inside a compiled, explicitly enumerated safe root. Anything else is refused even when a rule matches. Rule data cannot extend the allow-list.

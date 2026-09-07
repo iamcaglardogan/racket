@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a build or ordinary application problem using synthetic examples.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Potential data loss, an incorrect removal rule, or another security issue belongs in a [private security report](https://github.com/iamcaglardogan/racket/security/advisories/new). Do not include personal paths, manifests, or work files here.
+  - type: input
+    id: version
+    attributes:
+      label: Commit or release and macOS version
+      description: Include Xcode and Swift versions for build failures.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic data. Redact private paths from logs.
+    validations:
+      required: true

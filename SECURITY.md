@@ -2,7 +2,7 @@
 
 ## Report a security issue privately
 
-Use [GitHub's private vulnerability reporting form](https://github.com/iamcaglardogan/maccleanerapp/security/advisories/new) for a potential data-loss bug, an incorrect removal rule, a path-guard bypass, or an unexpected network request. Do not put private filesystem paths, manifests, or work files in a public issue.
+Use [GitHub's private vulnerability reporting form](https://github.com/iamcaglardogan/racket/security/advisories/new) for a potential data-loss bug, an incorrect removal rule, a path-guard bypass, or an unexpected network request. Do not put private filesystem paths, manifests, or work files in a public issue.
 
 Include the affected commit or release, macOS version, rule identifier if relevant, expected behavior, and steps to reproduce with synthetic files where possible. Share a redacted manifest only when it helps explain the issue. There is no response-time guarantee at this preparation stage.
 
@@ -10,7 +10,7 @@ If an eventual build moves an unexpected item to Trash, stop that removal sessio
 
 ## Supported versions
 
-There are no releases or executable builds yet. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
+There are no releases or distributed builds yet. Phase 0 contains development scaffolding only, with no scanning or cleanup feature. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
 
 ## Threat model
 

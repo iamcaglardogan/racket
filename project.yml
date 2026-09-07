@@ -1,0 +1,88 @@
+name: RACKET
+
+options:
+  minimumXcodeGenVersion: 2.46.0
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ARCHS: "arm64 x86_64"
+    ENABLE_HARDENED_RUNTIME: YES
+    ENABLE_APP_SANDBOX: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CODE_SIGN_STYLE: Automatic
+    GENERATE_INFOPLIST_FILE: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Owner-confirmed GitHub namespace; signing team is configured separately.
+    RACKET_BUNDLE_PREFIX: io.github.iamcaglardogan
+  configs:
+    Debug:
+      ONLY_ACTIVE_ARCH: YES
+    Release:
+      ONLY_ACTIVE_ARCH: NO
+
+targets:
+  RACKET:
+    type: application
+    platform: macOS
+    sources:
+      - path: RACKET/App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: "$(RACKET_BUNDLE_PREFIX).racket"
+        PRODUCT_NAME: RACKET
+        INFOPLIST_KEY_CFBundleDisplayName: RACKET
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        CODE_SIGN_ENTITLEMENTS: RACKET/Resources/RACKET.entitlements
+    dependencies:
+      - target: RacketCore
+        embed: true
+
+  RacketCore:
+    type: framework
+    platform: macOS
+    sources:
+      - path: RACKET/Core
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: "$(RACKET_BUNDLE_PREFIX).RacketCore"
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+
+  RacketCoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: "$(RACKET_BUNDLE_PREFIX).RacketCoreTests"
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: RacketCore
+
+schemes:
+  RACKET:
+    build:
+      targets:
+        RACKET: all
+        RacketCore: all
+        RacketCoreTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - name: RacketCoreTests
+    archive:
+      config: Release

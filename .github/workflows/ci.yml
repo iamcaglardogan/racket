@@ -1,0 +1,46 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Workflows receive no write permission and do not use signing credentials.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS 14+ / Swift 6
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Record the build environment
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Run headless core tests
+        run: make core-test
+
+      - name: Build the universal macOS app
+        run: make build CONFIGURATION=Release
+
+      - name: Run the Xcode test target
+        run: make test
+
+      - name: Verify both binary architectures
+        run: |
+          lipo -verify_arch arm64 x86_64 build/DerivedData/Build/Products/Release/RACKET.app/Contents/MacOS/RACKET
+          plutil -lint RACKET/Resources/RACKET.entitlements

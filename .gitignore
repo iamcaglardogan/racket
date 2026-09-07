@@ -11,6 +11,9 @@ DerivedData/
 .build/
 build/
 dist/
+.tools/
+.swiftpm/
+.cache/
 *.xcuserstate
 xcuserdata/
 *.dmg

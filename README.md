@@ -1,8 +1,8 @@
-# A macOS cleaner by El Chedo Production
+# RACKET
 
 A planned free, open-source, native macOS application for understanding disk usage and reviewing recoverable cleanup, with particular attention to creative work.
 
-**Status: project preparation.** The product name and bundle identifier are not selected. `maccleanerapp` is a temporary repository name. This repository currently contains project and security documentation only. There is no executable application, scanning engine, deletion code, or test suite yet. Phase 0 is not complete.
+**Status: Phase 0 scaffold, verification in progress.** RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. The scaffold establishes an empty application and headless core test target; scanning, cleanup, recovery, and product views are not implemented. Passing an empty test suite does not establish any of the safety guarantees below. Phase 0 is not yet accepted.
 
 ## Product direction
 
@@ -45,7 +45,7 @@ Each phase stops for the owner's review before the next begins:
 
 | Phase | Deliverable | Status |
 | --- | --- | --- |
-| 0 | Repository structure, XcodeGen configuration, Makefile, CI, empty buildable targets | Preparation started; incomplete |
+| 0 | Repository structure, XcodeGen configuration, Makefile, CI, empty buildable targets | Scaffold in progress; build verification pending |
 | 1 | PathGuard tests first, PathGuard, rule model and validation | Not started |
 | 2 | Headless scanner and synthetic fixtures | Not started |
 | 3 | Manifest, removal, and undo round trip | Not started |
@@ -56,7 +56,30 @@ Each phase stops for the owner's review before the next begins:
 | 8 | Developer and system modules, storage and snapshots | Not started |
 | 9 | Signing, notarization, release automation, Homebrew, and screenshots | Not started |
 
-No build commands or screenshots are provided yet because there is nothing runnable. XcodeGen will generate the Xcode project; generated `.pbxproj` files will not be committed. Build instructions and the exact supported toolchain will accompany Phase 0.
+## Development
+
+The macOS application requires a full Xcode installation with a Swift 6 toolchain and XcodeGen. Command Line Tools alone cannot build the SwiftUI application or run the Xcode test target. There are no third-party dependencies in the application or core target.
+
+```sh
+make build
+make test
+```
+
+These commands generate `RACKET.xcodeproj` from `project.yml` and use the `RACKET` scheme. The generated project is not committed. Development builds do not require an Apple Developer Team ID; distribution signing is deferred to Phase 9.
+
+For contributors with Swift 6 Command Line Tools, the Foundation-only core can be compiled separately:
+
+```sh
+make core-build
+```
+
+`make core-test` runs the package's empty XCTest suite and requires a toolchain containing XCTest, such as full Xcode. Command Line Tools installations without XCTest can run `make core-build` only. These package commands do not validate the application or cleanup safety.
+
+XcodeGen project generation, the headless core build, and Swift 6 strict-concurrency typechecking of the empty app entry point have passed locally. Full application build and test-runner verification are pending GitHub Actions. CI uses macOS 15 with Xcode 16.4, runs both test entry points, and checks that the Release binary contains Apple Silicon and Intel architectures. Its results must be reviewed before accepting Phase 0.
+
+The build downloads XcodeGen 2.46.0 from its official release into ignored `.tools/` storage and verifies the published SHA-256 digest before extraction. This is a development tool, not an application dependency.
+
+`make release` deliberately refuses to create a distribution build until signing, notarization, and packaging are implemented and verified in Phase 9. There is no release, downloadable cleaner, or product screenshot yet. Each release will document its exact Xcode and Swift versions for reproducibility.
 
 ## Distribution decisions
 
@@ -66,4 +89,4 @@ There will be no Mac App Store edition. App sandbox restrictions would prevent t
 
 Version 1 deliberately excludes malware scanning, RAM cleaning, speed-up claims, duplicate finding, purgeable-space reclamation, and a privileged helper. Items requiring elevated privileges will be reported and skipped.
 
-See [project decisions](docs/DECISIONS.md), [security reporting](SECURITY.md), and the [MIT license](LICENSE).
+See [contribution guidance](CONTRIBUTING.md), [project decisions](docs/DECISIONS.md), [security reporting](SECURITY.md), and the [MIT license](LICENSE).

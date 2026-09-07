@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose a focused improvement consistent with the safety contract.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should RACKET solve?
+      description: Describe the workflow and the expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain how the change preserves review, recovery, and honest reporting.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting information
+      description: For cleanup rules, include vendor documentation and verification notes. Do not include private paths or work files.

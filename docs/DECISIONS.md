@@ -3,6 +3,8 @@
 ## Confirmed by the owner
 
 - Agency: El Chedo Production.
+- Product name: **RACKET**. The owner selected it after asking for a name independent of the agency name.
+- Application identifier: `io.github.iamcaglardogan.racket`, explicitly confirmed by the owner.
 - Product: a free, open-source, native macOS cleaner under the MIT license.
 - Minimum operating system: macOS 14.0.
 - Creative priorities: DaVinci Resolve, After Effects, Photoshop, and additional creative applications as rules can be verified.
@@ -13,24 +15,25 @@
 
 ## Open product choices
 
-- Final product name and bundle identifier prefix. No application identifier will be generated before this decision.
 - A separate shipping CLI: recommended outside v1; the owner questioned its value and prefers investing in the interface.
 - Networking: recommend no application network requests for the first version. An optional GitHub version check remains a separate decision. GitHub use by contributors and CI does not require networking in the shipped app.
 
-## Repository preparation
+## Phase 0 scope
 
-Use `maccleanerapp` as a temporary repository name based on the existing workspace directory. This is not a product naming decision. The original brief calls for an open-source project, so the repository is public. Rename it and update documentation links once the name is selected.
+The public repository is `iamcaglardogan/racket`. The workspace folder may retain its original name. Creator attribution to El Chedo Production remains separate from the RACKET product identity.
 
-Do not add scanning, removal, application targets, or a guessed bundle identifier during this preparation step. Phase 0 remains incomplete until its empty application and test targets build and its required automation is verified.
+Phase 0 includes the source directory structure, empty app and test targets, XcodeGen configuration, build commands, CI, contributor guidance, and safety documentation. A Swift package provides a Foundation-only core build with Swift 6 Command Line Tools and a headless test path with XCTest. It is a development check, not a shipping CLI.
+
+Do not add scanning, removal, cleanup rules, permission prompts, or product views during Phase 0. Its empty app entry point exists solely to verify the application target. Stop for the owner's review before Phase 1.
 
 ## Verification status
 
-Build verification is pending. A supported full Xcode environment and XcodeGen are required. Do not claim the macOS application builds until the requested build tooling and empty targets have been configured and tested.
+XcodeGen generation, the headless core build, and Swift 6 strict-concurrency typechecking of the empty app have passed locally. Full application build and test verification are pending CI with Xcode 16.4. XCTest requires a suitable toolchain; Command Line Tools alone are not sufficient on every installation. Do not treat an empty test suite as evidence that cleanup is safe. Phase 0 is not complete until its required build and CI checks have been verified.
 
 Application presence does not verify a cleanup rule. Cache paths, project attribution, running-process behavior, and deletion safety have not been verified. No cache rule is enabled or shipped.
 
 ## Interface proposal for later review
 
-Explore a cool paper neutral palette with a desaturated mineral accent, large tabular storage figures, a readable disk-usage visualization, and project-focused cache lists. Every finding must show its path, allocated size, rule reason, and Reveal in Finder action. A single restrained scan-completion transition may create the visual signature, with Reduce Motion support.
+The naming discussion explored metal, smoke-grey, and a restrained burgundy accent. The original brief proposes cool paper neutrals and a desaturated mineral accent. Neither palette is an approved design. Resolve the visual direction in Phase 5, retaining readable tabular storage figures and project-focused cache lists. Every finding must show its path, allocated size, rule reason, and Reveal in Finder action. A single restrained scan-completion transition may create the visual signature, with Reduce Motion support.
 
 Write and review `DESIGN.md` and the token system in Phase 5 before implementing views. This proposal is not a completed design or approval to bypass the earlier safety phases.
