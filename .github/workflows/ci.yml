@@ -34,6 +34,9 @@ jobs:
       - name: Run headless core tests
         run: make core-test
 
+      - name: Check source safety boundaries
+        run: make check-policy
+
       - name: Build the universal macOS app
         run: make build CONFIGURATION=Release
 
