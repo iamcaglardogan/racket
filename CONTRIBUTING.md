@@ -1,16 +1,16 @@
 # Contributing to RACKET
 
-RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). Complete the current phase's checks and owner review before starting the next one. Phase 0 does not include scanning, removal, cleanup rules, or product interface work.
+RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). Phase 0 is accepted; Phase 1 path and rule validation is implemented and verified in CI, with owner review pending. Keep `phase-1-trust-core` unmerged until the owner reviews the checkpoint. Scanning, removal, verified creative rules, and product interface work belong to later phases.
 
 ## Build and verify
 
 Use a full Xcode installation with Swift 6 for `make build` and `make test`; the build prepares a pinned XcodeGen tool locally. `make core-build` compiles the Foundation-only core with Swift 6 Command Line Tools. `make core-test` additionally requires XCTest, which is absent from some Command Line Tools installations. Neither package command validates the application. See the README for the current verification limits.
 
-Edit `project.yml`, not the generated Xcode project. Keep `Core/` independent of SwiftUI. Do not introduce a dependency without the owner's approval. Record the commands run, their results, and anything you could not verify in the pull request. Passing an empty suite establishes only that the test runner works.
+Edit `project.yml`, not the generated Xcode project. Keep `Core/` independent of SwiftUI. Do not introduce a dependency without the owner's approval. Run `make check-policy` alongside the relevant tests; it flags selected destructive and networking APIs, misplaced Trash calls, and UI imports in the core. It is a source guardrail, not proof of runtime safety. Record the commands run, their results, and anything you could not verify in the pull request. See [testing scope and limits](docs/TESTING.md).
 
 ## Adding or changing a cleanup rule
 
-Rule implementation starts in Phase 1; creative rule verification and grouping follow in Phase 4. A rule proposal must include:
+The rule model and loader are implemented in Phase 1; creative rule verification and grouping follow in Phase 4. The bundled `RACKET/Core/Rules/Rules/core-v1.json` intentionally contains no rules. A rule proposal must include:
 
 - A unique identifier, producer bundle identifiers, bounded paths and walk depth, and applicable conditions.
 - A plain-language `reason` and `regenerationCost`, rendered directly in the future findings interface.
@@ -18,11 +18,13 @@ Rule implementation starts in Phase 1; creative rule verification and grouping f
 - A risk tier that reflects the cost of recovery. Deliberate downloads and data that may be the only local copy belong in `judgement`, which is never preselected.
 - Verification notes naming the application version, macOS version, path, expected contents, and whether the application must be closed. Merely finding a directory or having the app installed does not establish that its contents are safe to remove.
 
-If a path or its behavior has not been verified, include `"verified": false`. Unverified rules must remain disabled and must not ship enabled. Do not infer ownership or safe deletion from a cache-like name. When an API or path is uncertain, document the uncertainty before relying on it.
+If a path or its behavior has not been verified, include `"verified": false` and `"enabled": false`. Missing flags default to false; explicit nulls are rejected, and an enabled unverified rule fails validation. Do not infer ownership or safe deletion from a cache-like name. When an API or path is uncertain, document the uncertainty before relying on it.
 
-Rules cannot grant themselves removal authority. Their paths must pass the compiled safe-root allow-list and independent protected-root checks. Preferences, project databases, original media, autosaves, and offline copies need explicit protection. Any proposed change to safe roots requires its own safety justification and adversarial tests.
+Rules cannot grant themselves removal authority. Every declaration, even a disabled rule, must pass the compiled safe-root allow-list and independent protected-root checks. Only `~/Library/Caches` and `~/Library/Logs` are enumerated in this phase. Rule data cannot specify roots, change home-directory resolution, or relax protected paths. Any proposed change to roots requires its own safety justification and adversarial tests. A directory-contents declaration may name a root, but the root itself can never be a removal candidate.
 
-Validation must reject missing reasons, regeneration notes, citations, duplicate identifiers, unsafe roots, and enabled unverified rules. Include synthetic examples of what must match and what must be refused. These checks are planned; do not claim that the Phase 0 scaffold implements the rule validator.
+Schema 1 requires a three-part numeric document version. It supports only `directoryContents` with `maxDepth` from 1 through 32, and at most one `olderThanDays` condition from 1 through 36,500. Unknown fields and matching modes, duplicate JSON keys including escaped equivalents, duplicate IDs, missing reasons or regeneration notes, and invalid citations fail validation. Citations must be HTTPS URLs without embedded credentials. The loader caps input at 1 MiB, 1,000 rules, and 64 paths per rule; see the model for field-length limits.
+
+Use the fixed bundle loader in the application and the explicit Data loader for synthetic tests. Supply `SafeRoots.validateRulePath` as the path validator. Validation checks declarations; future scanners and the removal boundary must still validate every actual item and protected descendant. Add tests for accepted and refused examples, including disabled unsafe rules. There is no filesystem path or network rule-loading API.
 
 ## Test data and file safety
 

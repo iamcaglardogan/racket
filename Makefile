@@ -15,7 +15,7 @@ help:
 	  'make bootstrap  Download the pinned XcodeGen build tool into .tools' \
 	  'make project    Generate the untracked Xcode project' \
 	  'make build      Build the unsigned macOS app for Apple Silicon and Intel' \
-	  'make test       Run the Xcode test target (empty in Phase 0)' \
+	  'make test       Run the Xcode safety test target' \
 	  'make core-build Build the headless core with Swift 6 Command Line Tools' \
 	  'make core-test  Run the headless Swift package tests (XCTest required)' \
 	  'make check-policy Check source safety boundaries' \
