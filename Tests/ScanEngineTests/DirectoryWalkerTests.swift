@@ -134,9 +134,32 @@ final class DirectoryWalkerTests: XCTestCase, @unchecked Sendable {
         let alias = fixture.vendor + "/hard-link.bin"
         XCTAssertEqual(link(source, alias), 0)
         let result = try fixture.walker.walk(path: fixture.vendor, maxDepth: 3)
-        let first = try XCTUnwrap(result.files.first { $0.resolvedPath == source })
-        let second = try XCTUnwrap(result.files.first { $0.resolvedPath == alias })
+        let diagnostics = String(describing: result.issues.map { ($0.path, $0.reason) })
+        let first = try XCTUnwrap(result.files.first { $0.resolvedPath == source }, diagnostics)
+        let second = try XCTUnwrap(result.files.first { $0.resolvedPath == alias }, diagnostics)
         XCTAssertEqual(first.identity, second.identity)
+    }
+
+    func testOtherHardLinkLookupsCannotRenameAValidatedLeafObservation() throws {
+        let fixture = try WalkerFixture()
+        let source = try fixture.write("Library/Caches/Aliases/cache.bin", data: Data([1]))
+        let alias = fixture.home + "/Documents/other-name.bin"
+        XCTAssertEqual(link(source, alias), 0)
+        var operations = ScanMetadataOperations.live
+        operations.allocatedSize = { path in
+            let size = try ScanMetadataOperations.live.allocatedSize(path)
+            let descriptor = Darwin.open(alias, O_EVTONLY | O_NOFOLLOW | O_CLOEXEC)
+            guard descriptor >= 0 else { throw ScanMetadataError.system(errno) }
+            _ = Darwin.close(descriptor)
+            return size
+        }
+        let walker = DirectoryWalker(policy: fixture.policy, calculator: SizeCalculator(operations: operations))
+        // Exercise name-cache churn without filesystem mutation or test retries.
+        for _ in 0..<20 {
+            let result = try walker.walk(path: fixture.caches + "/Aliases", maxDepth: 1)
+            XCTAssertEqual(result.files.map(\.resolvedPath), [source], String(describing: result.issues.map(\.reason)))
+            XCTAssertTrue(result.issues.isEmpty)
+        }
     }
 
     func testScanLeavesSyntheticFileContentsUnchanged() throws {
@@ -222,6 +245,25 @@ final class DirectoryWalkerTests: XCTestCase, @unchecked Sendable {
         let result = try walker.walk(path: moving, maxDepth: 2)
         XCTAssertTrue(result.files.isEmpty)
         XCTAssertTrue(result.issues.contains { $0.reason == .pathRefused(.changed) })
+    }
+
+    func testRegularFileSubstitutionDuringSizeLookupCannotProduceFinding() throws {
+        let fixture = try WalkerFixture()
+        let target = try fixture.write("Library/Caches/FileRace/cache.bin", data: Data([1]))
+        let counter = MetadataAccessCounter()
+        var operations = ScanMetadataOperations.live
+        operations.allocatedSize = { path in
+            if path == target && counter.increment() == 1 {
+                try FileManager.default.moveItem(atPath: target, toPath: target + ".preserved")
+                try Data([2]).write(to: URL(fileURLWithPath: target))
+                return 4_096
+            }
+            return try ScanMetadataOperations.live.allocatedSize(path)
+        }
+        let walker = DirectoryWalker(policy: fixture.policy, calculator: SizeCalculator(operations: operations))
+        let result = try walker.walk(path: fixture.caches + "/FileRace", maxDepth: 2)
+        XCTAssertFalse(result.files.contains { $0.resolvedPath == target })
+        XCTAssertTrue(result.issues.contains { $0.path == target && $0.reason == .pathRefused(.changed) })
     }
 
     func testEngineAndRealWalkerMatchCheckedInFixtureEndToEnd() async throws {

@@ -18,6 +18,8 @@ The walker retains metadata-only `O_NOFOLLOW` descriptors for the origin and anc
 
 These checks reduce the chance of reporting a substituted path. They are not an atomic snapshot of a changing filesystem. Foundation's pathname queries remain observations, and a later consumer cannot treat a finding as a removal receipt. Phase 3 must independently validate removal scope and its remaining race boundary.
 
+Regular files bind to a retained, verified parent directory plus their exact entry name and a fresh no-follow open with a matching fingerprint. Reverse descriptor paths are checked for directories, not used as unique names for regular inodes: hard links can give the same inode multiple paths. A name-cache-churn regression exercises this case, alongside regular-file and symlink substitutions. Apple's kernel documents the ambiguity of reverse vnode paths with hard links. [Apple vnode declarations](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/vnode.h)
+
 ## Dataless metadata sequence
 
 Enumeration and even ancestor lookups may materialize dataless directories. Apple documents a per-thread policy to refuse that materialization and report `EDEADLK`. RACKET applies this policy around the entire synchronous walk, including origin lookup, then restores the prior policy on success or failure. No `await` may enter this scope because a Swift task can resume on a different thread. A policy setup or restoration error cannot produce a successful complete scan. [Apple TN3150](https://developer.apple.com/documentation/technotes/tn3150-getting-ready-for-data-less-files)

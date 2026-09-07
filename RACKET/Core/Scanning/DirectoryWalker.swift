@@ -105,7 +105,6 @@ public struct DirectoryWalker: Sendable {
                         if flags & UInt32(SF_DATALESS) != 0 { throw ScanMetadataError.dataless }
                         try verify(directory.anchors)
                         let child = try directory.descriptor.child(entry.name)
-                        try child.requirePath(childPath)
                         let gated = try calculator.inspect(
                             descriptor: child.value, path: childPath, includeSize: false,
                             skipExcludedFromBackup: skipExcludedFromBackup
@@ -113,7 +112,7 @@ public struct DirectoryWalker: Sendable {
                         guard gated.identity.device == directory.rootDevice else { throw PathGuardError.mountBoundary }
                         try child.refuseMountPoint(childPath)
                         try verify(directory.anchors)
-                        try child.requirePath(childPath)
+                        if gated.kind == .directory { try child.requirePath(childPath) }
                         let metadata = try calculator.inspect(
                             descriptor: child.value, path: childPath, includeSize: true,
                             skipExcludedFromBackup: skipExcludedFromBackup
@@ -122,9 +121,14 @@ public struct DirectoryWalker: Sendable {
                         // Reopen relative to the retained parent after pathname-based
                         // Foundation metadata. Replacement or symlink substitution
                         // invalidates this observation; it is never removal authority.
+                        // A regular inode may have multiple hard-link names, so its
+                        // F_GETPATH reverse lookup is not a unique name binding.
+                        // Bind leaves through the verified parent + openat name,
+                        // then compare a fresh no-follow open's full fingerprint.
                         let fresh = try directory.descriptor.child(entry.name)
-                        try fresh.requirePath(childPath)
                         let rechecked = try calculator.inspect(descriptor: fresh.value, path: childPath, includeSize: false)
+                        try verify(directory.anchors)
+                        if rechecked.kind == .directory { try fresh.requirePath(childPath) }
                         guard rechecked.fingerprint == metadata.fingerprint else { throw PathGuardError.changed }
                         if metadata.kind == .regularFile {
                             state.files.append(ScannedFile(
