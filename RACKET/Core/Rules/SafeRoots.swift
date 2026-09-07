@@ -32,6 +32,12 @@ public struct SafeRoots: Sendable {
         try checked(path, allowRoot: false)
     }
 
+    /// A scan may enumerate a compiled root, but never emit that root as a finding.
+    func validateScanRoot(_ path: String) throws -> String {
+        try validateRulePath(path)
+        return try checked(path, allowRoot: true)
+    }
+
     func root(containing path: String) throws -> String {
         guard let root = paths.first(where: { Self.isWithin(path, root: $0) }) else {
             throw PathGuardError.outsideSafeRoots
