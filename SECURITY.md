@@ -30,6 +30,6 @@ Never ask users to grant Full Disk Access to Terminal or another general-purpose
 
 Telemetry is prohibited. The product decision about a default-off GitHub update check is pending; no application networking code exists.
 
-Signing keys, certificates, API tokens, and notarization credentials do not belong in this repository. Future CI should use minimum permissions and pinned dependencies/actions. Release signing and notarization will be configured after the owner supplies the required developer account setup.
+Signing keys, certificates, API tokens, and notarization credentials do not belong in this repository. CI uses read-only permissions, a commit-pinned checkout action, and a checksum-verified XcodeGen release. GitHub secret scanning, push protection, and private vulnerability reporting are enabled. Release signing and notarization will be configured after the owner supplies the required developer account setup.
 
 The safety contract and its planned enforcement map are in [SAFETY.md](SAFETY.md).
