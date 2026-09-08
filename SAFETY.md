@@ -2,7 +2,7 @@
 
 This contract governs every future implementation change. When a feature conflicts with an invariant, the feature loses.
 
-**Implementation status:** Phase 0 scaffolding only. The enforcement test references below are planned destinations, not existing or passing safety tests. The initial empty test target only checks that test infrastructure can run. No scanning or removal code exists. Each planned control must become an executable check in its delivery phase before that phase can be accepted.
+**Implementation status:** Phase 1 path and rule validation is implemented and verified in CI; owner review is pending. The suite contains 31 PathGuard tests and 31 rule tests, including 10,000 generated adversarial paths. [CI run 34125991610](https://github.com/iamcaglardogan/racket/actions/runs/34125991610) passed all 62 tests in both test runners. This is not a claim that a future cleanup operation is safe. No scanning or removal code exists. Phase 0 was accepted; Phase 1 remains a separate review checkpoint.
 
 1. **S1. Trash, never unlink.** All removals go through `FileManager.trashItem(at:resultingItemURL:)`, called only by `RemovalEngine`. No code path, test, temporary utility, or script may permanently delete user-visible content. The sole exception is the user's explicit Empty Trash action.
 2. **S2. Allow-list, not deny-list.** A deletable path must resolve inside a compiled, explicitly enumerated safe root. Anything else is refused even when a rule matches. Rule data cannot extend the allow-list.
@@ -15,26 +15,34 @@ This contract governs every future implementation change. When a feature conflic
 9. **S9. No fear.** Do not use alarm counters, health scores, threat meters, fear-based copy, or inflated findings. Size is information rather than a danger signal.
 10. **S10. Auditable by construction.** Every finding identifies one readable rule and one path. Rules must carry a unique identifier, source citation, plain-language reason, and regeneration cost. Unverified rules do not ship enabled.
 
-## Planned enforcement map
+## Enforcement map
 
-| Invariant | Planned test location | Required evidence |
+The Phase 1 entries below are implemented and passed the linked CI run. Entries for later phases remain requirements. See [testing scope and limits](docs/TESTING.md) for the boundaries of the current evidence.
+
+| Invariant | Enforcement location | Current coverage and remaining work |
 | --- | --- | --- |
-| S1 | `Tests/RemovalEngineTests/` and a repository source policy check | Only RemovalEngine calls the Trash API; no forbidden destructive path in application, tests, or scripts |
-| S2 | `Tests/PathGuardTests/` | Generated adversarial paths never authorize content outside safe roots |
-| S3 | `Tests/PathGuardTests/`, `Tests/RemovalEngineTests/` | Symlink farm, loops, protected origins, mount boundaries, and replacement between validation and removal fail closed |
-| S4 | `Tests/ScanEngineTests/`, `Tests/RemovalEngineTests/` | Dataless metadata gates all size/content access and produces a recorded skip |
-| S5 | `Tests/RuleSetTests/`, `Tests/PathGuardTests/` | Cache sweeps reject Preferences; uninstall authority is explicit and scoped |
-| S6 | Selection and scheduling tests in the relevant feature phases | No removal from a scan timer alone; judgement findings never preselected; approved automation supplies undo |
-| S7 | Network-policy tests in the app phase and dependency checks in CI | Zero telemetry; any version check is opt-in and can be disabled permanently |
-| S8 | `Tests/ScanEngineTests/` and storage accounting tests | Allocated-size accounting, overflow handling, and separate free/purgeable reporting |
-| S9 | Copy/token checks and accessibility/UI review in the design phase | No alarm metrics, misleading copy, or fear-based presentation |
-| S10 | `Tests/RuleSetTests/` | Rule explanations and citations are mandatory, identifiers unique, safe roots validated, and unverified rules disabled |
+| S1 | [Source policy check](scripts/check-source-policy.py); future `Tests/RemovalEngineTests/` | Selected permanent-deletion APIs and misplaced Trash calls are rejected by the source check. Actual Trash/manifest/undo behavior awaits Phase 3. |
+| S2 | [PathGuard tests](Tests/PathGuardTests/PathGuardTests.swift), [rule tests](Tests/RuleSetTests/RuleSetTests.swift) | Compiled Caches/Logs roots, root-candidate refusal, prefix collisions, unsafe rule paths, and 10,000 generated paths are covered. Rules cannot supply roots. |
+| S3 | [PathGuard tests](Tests/PathGuardTests/PathGuardTests.swift); future removal tests | No-follow traversal, symlink leaves/ancestors/loops, and item/ancestor replacement receipts are covered. Atomic Trash behavior and live mount transitions remain unproven. |
+| S4 | [PathGuard](RACKET/Core/Removal/PathGuard.swift); future scanner/removal tests | The implementation queries flags before `fstat` and refuses `SF_DATALESS`; it does not read content or use size fields. Actual placeholder hydration and scanner skip reporting still need tests. |
+| S5 | [Rule tests](Tests/RuleSetTests/RuleSetTests.swift), [PathGuard tests](Tests/PathGuardTests/PathGuardTests.swift) | Compiled policy rejects Preferences and protected project paths. There is no uninstall exception or uninstall implementation. |
+| S6 | [Rule tests](Tests/RuleSetTests/RuleSetTests.swift); future selection/scheduling tests | Judgement rules are never eligible for preselection. User approval, standing rules, notifications, and undo await their feature phases. |
+| S7 | [Source policy check](scripts/check-source-policy.py); future network-policy tests | Selected networking APIs are blocked and the core has no dependencies. This static guardrail does not prove absence of every possible network path. |
+| S8 | Future scanner and storage tests | Allocated-size accounting, overflow handling, and separate free/purgeable reporting are not implemented. |
+| S9 | Future copy/token checks and accessibility/UI review | Product views and metrics are not implemented. |
+| S10 | [Rule tests](Tests/RuleSetTests/RuleSetTests.swift) | Strict versioned schema, unknown/duplicate JSON keys, unique IDs, required explanations and citations, bounded matches, compiled path policy, and unverified/disabled states are covered. The bundled document contains zero rules. |
 
 Tests must use isolated synthetic fixtures rather than the real home directory. A failed Trash call must still leave a manifest entry proving the pre-call record was written. A test's cleanup is subject to S1 too.
+
+## Phase 1 boundary
+
+`SafeRoots` currently enumerates only `~/Library/Caches` and `~/Library/Logs`. Rule declarations may name a root for matching its contents; the root itself cannot be a removal candidate. Protected names and extensions are checked independently. No broader creative or system path has been enabled.
+
+`PathGuard` opens each component using `O_EVTONLY` and `O_NOFOLLOW`, reads flags before `fstat`, and produces a read-only identity receipt. Revalidation compares both the item and its ancestors. A receipt is an observation, not removal authority: it does not approve unexamined descendants or close the race between a final check and a pathname-based Trash call. The scanner and removal engine must address those boundaries in Phases 2 and 3.
 
 ## Clarifications required before affected implementation
 
 - The brief mentions snapshot deletion, simulator deletion, Docker pruning, and language-file removal. These must not be implemented as implicit exceptions to S1. Resolve the conflict with the owner before adding any such action.
 - Preference removal during uninstall needs narrowly scoped authority; it must not weaken the independent deny rules for ordinary cleanup.
-- The dataless requirement needs a documented metadata-access sequence: inspect the metadata required to recognize a placeholder without opening or reading its contents. Verify API behavior before relying on it.
-- Two pathname checks do not by themselves prove resistance to all filesystem races. Phase 1 and Phase 3 must document the guarantees and remaining OS API constraints, supported by adversarial tests.
+- The implemented flags-before-stat sequence needs behavioral verification against real dataless placeholders before scanner content/size access can rely on it. Do not infer absence of hydration from a successful ordinary-file test.
+- Receipt replacement tests do not prove resistance to every filesystem race. Phase 3 must address the remaining Trash boundary, directory-descendant safety, and live mount transitions with explicit tests and documented limits.

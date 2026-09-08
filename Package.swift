@@ -14,7 +14,8 @@ let package = Package(
     targets: [
         .target(
             name: "RacketCore",
-            path: "RACKET/Core"
+            path: "RACKET/Core",
+            resources: [.process("Rules/Rules")]
         ),
         .testTarget(
             name: "RacketCoreTests",

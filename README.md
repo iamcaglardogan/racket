@@ -2,7 +2,11 @@
 
 A planned free, open-source, native macOS application for understanding disk usage and reviewing recoverable cleanup, with particular attention to creative work.
 
-**Status: Phase 0 scaffold implemented; owner review required.** RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. The scaffold establishes an empty application and headless core test target; scanning, cleanup, recovery, and product views are not implemented. Passing an empty test suite does not establish any of the safety guarantees below. Review the [latest build and test results](https://github.com/iamcaglardogan/racket/actions/workflows/ci.yml) before accepting this checkpoint.
+**Status: Phase 1 trust core verified in CI; owner review pending.** RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. Phase 0 was accepted. Phase 1 adds read-only path validation, rule loading, and 62 XCTest cases. Scanning, cleanup, recovery, and product views are not implemented. The `phase-1-trust-core` checkpoint is intended for pull-request review and will remain unmerged until the owner reviews it. Review the [build and test results](https://github.com/iamcaglardogan/racket/actions/workflows/ci.yml) before accepting it.
+
+The compiled path policy currently permits only the current user's `Library/Caches` and `Library/Logs` as rule locations. It refuses the roots themselves as removal candidates and independently checks protected project formats, original-media and autosave names, preferences, cloud-container names, and `.git` paths. The bundled rule document is deliberately empty: no application cache path has been verified or enabled.
+
+`PathGuard` walks path components through metadata-only, no-follow descriptors and records file and ancestor identities for revalidation. These checks do not authorize an unexamined directory's contents or make a future Trash operation atomic. Placeholder hydration, live mount transitions, and the remaining removal race need further verification in Phases 2 and 3. See the [testing scope and limits](docs/TESTING.md).
 
 ## Product direction
 
@@ -45,8 +49,8 @@ Each phase stops for the owner's review before the next begins:
 
 | Phase | Deliverable | Status |
 | --- | --- | --- |
-| 0 | Repository structure, XcodeGen configuration, Makefile, CI, empty buildable targets | Implemented; requires passing CI and owner review |
-| 1 | PathGuard tests first, PathGuard, rule model and validation | Not started |
+| 0 | Repository structure, XcodeGen configuration, Makefile, CI, empty buildable targets | Accepted by the owner |
+| 1 | PathGuard tests first, PathGuard, rule model and validation | Implemented and verified in CI; owner review pending |
 | 2 | Headless scanner and synthetic fixtures | Not started |
 | 3 | Manifest, removal, and undo round trip | Not started |
 | 4 | Verified creative rules and project grouping | Not started |
@@ -73,9 +77,11 @@ For contributors with Swift 6 Command Line Tools, the Foundation-only core can b
 make core-build
 ```
 
-`make core-test` runs the package's empty XCTest suite and requires a toolchain containing XCTest, such as full Xcode. Command Line Tools installations without XCTest can run `make core-build` only. These package commands do not validate the application or cleanup safety.
+`make core-test` runs the headless XCTest suite and requires a toolchain containing XCTest, such as full Xcode. Command Line Tools installations without XCTest can run `make core-build` only. The suite contains 31 PathGuard tests, including 10,000 generated adversarial path cases, and 31 rule-validation tests. Tests use synthetic paths and isolated temporary fixtures; they do not scan the real home directory. Core tests do not validate the application or a complete cleanup flow.
 
-XcodeGen project generation, the headless core build, and Swift 6 strict-concurrency typechecking of the empty app entry point have passed locally. Full application and test-runner verification is recorded in GitHub Actions. CI uses macOS 15 with Xcode 16.4, runs both test entry points, and checks that the Release binary contains Apple Silicon and Intel architectures. The target minimum is macOS 14; a successful macOS 15 CI run does not establish runtime compatibility on macOS 14. Its results must be reviewed before accepting Phase 0.
+`make check-policy` checks selected destructive APIs, Trash calls outside the removal boundary, unapproved networking APIs, and UI imports in the core. CI runs this source check as an additional guardrail; pattern matching is not proof of runtime safety.
+
+The headless core compiles locally. A limited local smoke check exercised ordinary files, unchanged receipts, symlink ancestors, FIFOs, and replacements; it does not replace the full suite. [CI run 34125991610](https://github.com/iamcaglardogan/racket/actions/runs/34125991610) passed all 62 tests under both SwiftPM and Xcode, the source checks, and universal app verification. CI uses macOS 15 with Xcode 16.4, runs both test entry points, and checks that the Release binary contains Apple Silicon and Intel architectures. The target minimum is macOS 14; a successful macOS 15 CI run does not establish runtime compatibility on macOS 14. Phase 1 test and build results must be reviewed before this checkpoint is accepted.
 
 The build downloads XcodeGen 2.46.0 from its official release into ignored `.tools/` storage and verifies the published SHA-256 digest before extraction. This is a development tool, not an application dependency.
 

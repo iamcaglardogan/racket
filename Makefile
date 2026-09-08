@@ -8,16 +8,17 @@ XCODEGEN := $(CURDIR)/.tools/xcodegen-2.46.0/xcodegen/bin/xcodegen
 XCODEBUILD := xcrun xcodebuild
 XCODE_FLAGS := -project RACKET.xcodeproj -scheme RACKET -configuration $(CONFIGURATION) -derivedDataPath "$(DERIVED_DATA)" RACKET_BUNDLE_PREFIX="$(RACKET_BUNDLE_PREFIX)" CODE_SIGNING_ALLOWED=NO
 
-.PHONY: help bootstrap project check-xcode build test core-build core-test release
+.PHONY: help bootstrap project check-xcode check-policy build test core-build core-test release
 
 help:
 	@printf '%s\n' \
 	  'make bootstrap  Download the pinned XcodeGen build tool into .tools' \
 	  'make project    Generate the untracked Xcode project' \
 	  'make build      Build the unsigned macOS app for Apple Silicon and Intel' \
-	  'make test       Run the Xcode test target (empty in Phase 0)' \
+	  'make test       Run the Xcode safety test target' \
 	  'make core-build Build the headless core with Swift 6 Command Line Tools' \
 	  'make core-test  Run the headless Swift package tests (XCTest required)' \
+	  'make check-policy Check source safety boundaries' \
 	  'make release    Reserved for signed distribution in Phase 9'
 
 bootstrap:
@@ -28,6 +29,9 @@ project: bootstrap
 
 check-xcode:
 	@bash scripts/check-xcode.sh
+
+check-policy:
+	python3 scripts/check-source-policy.py
 
 build: check-xcode project
 	$(XCODEBUILD) $(XCODE_FLAGS) -destination 'generic/platform=macOS' ONLY_ACTIVE_ARCH=NO 'ARCHS=arm64 x86_64' build
