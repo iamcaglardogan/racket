@@ -1,6 +1,6 @@
 # Contributing to RACKET
 
-RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). Phase 0 is accepted; Phase 1 path and rule validation is implemented and verified in CI, with owner review pending. Keep `phase-1-trust-core` unmerged until the owner reviews the checkpoint. Scanning, removal, verified creative rules, and product interface work belong to later phases.
+RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). The owner accepted Phases 1 and 2 and explicitly approved merging pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2). Pull request 1 is merged into main. Phase 3 has not started. Removal, verified creative rules, and product interface work belong to later phases.
 
 ## Build and verify
 
@@ -22,9 +22,15 @@ If a path or its behavior has not been verified, include `"verified": false` and
 
 Rules cannot grant themselves removal authority. Every declaration, even a disabled rule, must pass the compiled safe-root allow-list and independent protected-root checks. Only `~/Library/Caches` and `~/Library/Logs` are enumerated in this phase. Rule data cannot specify roots, change home-directory resolution, or relax protected paths. Any proposed change to roots requires its own safety justification and adversarial tests. A directory-contents declaration may name a root, but the root itself can never be a removal candidate.
 
-Schema 1 requires a three-part numeric document version. It supports only `directoryContents` with `maxDepth` from 1 through 32, and at most one `olderThanDays` condition from 1 through 36,500. Unknown fields and matching modes, duplicate JSON keys including escaped equivalents, duplicate IDs, missing reasons or regeneration notes, and invalid citations fail validation. Citations must be HTTPS URLs without embedded credentials. The loader caps input at 1 MiB, 1,000 rules, and 64 paths per rule; see the model for field-length limits.
+Schema 1 requires a three-part numeric document version. It supports only `directoryContents` with `maxDepth` from 1 through 32, and at most one `olderThanDays` condition from 1 through 36,500. Phase 2 adds the optional Boolean `skipExcludedFromBackup`, which defaults to false; explicit nulls and other types are rejected. Only explicit true enables this filter, and the scanner reports excluded items. Unknown fields and matching modes, duplicate JSON keys including escaped equivalents, duplicate IDs, missing reasons or regeneration notes, and invalid citations fail validation. Citations must be HTTPS URLs without embedded credentials. The loader caps input at 1 MiB, 1,000 rules, and 64 paths per rule; see the model for field-length limits.
 
-Use the fixed bundle loader in the application and the explicit Data loader for synthetic tests. Supply `SafeRoots.validateRulePath` as the path validator. Validation checks declarations; future scanners and the removal boundary must still validate every actual item and protected descendant. Add tests for accepted and refused examples, including disabled unsafe rules. There is no filesystem path or network rule-loading API.
+Use the fixed bundle loader in the application and the explicit Data loader for synthetic tests. Supply `SafeRoots.validateRulePath` as the path validator. Validation checks declarations; the scanner independently checks rule paths and actual children, while the future removal boundary must validate its own scope. Add tests for accepted and refused examples, including disabled unsafe rules. There is no filesystem path or network rule-loading API.
+
+## Changing the scanner
+
+Read [SCANNING.md](docs/SCANNING.md) before changing metadata access, traversal, scheduling, or size totals. Keep the entire no-materialization policy scope synchronous, including ancestor lookup, and preserve its restoration on error. No size query or regular-file content read may precede dataless gates. Test injected metadata call order independently of ordinary-file integration; do not describe either as proof against real provider hydration.
+
+Use a fixed reference date and synthetic rule data for exact findings tests. Assert reported skips and refusals as well as findings, depth and entry limits, cancellation, deterministic overlapping-rule behavior, hard-link deduplication, and overflow refusal. Allocated-size expectations must come from allocated metadata or controlled injected values, not logical file length. Do not add directory findings or enable cache rules to make the test harness more convenient.
 
 ## Test data and file safety
 

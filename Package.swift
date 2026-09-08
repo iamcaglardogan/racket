@@ -20,7 +20,8 @@ let package = Package(
         .testTarget(
             name: "RacketCoreTests",
             dependencies: ["RacketCore"],
-            path: "Tests"
+            path: "Tests",
+            exclude: ["Fixtures"]
         )
     ],
     swiftLanguageModes: [.v6]

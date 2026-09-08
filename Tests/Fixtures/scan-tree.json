@@ -1,0 +1,12 @@
+{
+  "directories": ["Library/Caches/Vendor/empty", "Library/Logs/Vendor"],
+  "files": {
+    "Library/Caches/Vendor/cache.bin": "synthetic regenerable cache",
+    "Library/Caches/Vendor/nested/audio.cache": "synthetic conformed audio",
+    "Library/Caches/Vendor/Original Media/clip.mov": "valuable source media fixture",
+    "Library/Caches/Vendor/.git/config": "valuable repository metadata fixture",
+    "Library/Caches/Vendor/Project.drp": "valuable project fixture",
+    "Library/Logs/Vendor/old.log": "synthetic diagnostic log",
+    "Documents/valuable.txt": "outside compiled authority"
+  }
+}

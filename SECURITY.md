@@ -10,7 +10,7 @@ If an eventual build moves an unexpected item to Trash, stop that removal sessio
 
 ## Supported versions
 
-There are no releases or distributed builds yet. The Phase 1 review branch adds a read-only path guard and rule validation to the development scaffold; it has no scanning or cleanup feature. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
+There are no releases or distributed builds yet. The core includes headless read-only scanning, the path guard, and the rule validator; its 146-test suite and universal build passed CI. The bundled rule document remains empty, and there is no cleanup feature or product interface. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
 
 ## Threat model
 
@@ -18,7 +18,9 @@ The application will operate on valuable local files. Assets include source medi
 
 Phase 1 implements compiled cache/log roots, independent protected-path checks, metadata-only no-follow path walks, dataless flag checks, identity receipts and revalidation, and bounded, strict rule decoding. Synthetic tests cover path rejection and identity substitutions; live cloud-placeholder behavior and separately mounted volumes still need dedicated validation.
 
-A successful path check is an observation, not permission to remove unexamined descendants or a guarantee against all concurrent filesystem changes. Scanner traversal bounds, removal-time checks, reviewable findings, pre-removal manifest writes, and the single Trash gateway remain future work. See [the test plan and its limits](docs/TESTING.md).
+Phase 2 adds bounded directory enumeration, per-child path checks, regular-file findings, and visible skip/refusal/incomplete issues. The synchronous walk disables dataless materialization for its thread, checks descriptor flags and URL cloud metadata before size access, and restores the prior thread policy. Synthetic metadata tests cannot prove that every real cloud provider avoids hydration; that integration remains unverified.
+
+A successful path check or scan finding is an observation, not permission to remove unexamined descendants or a guarantee against all concurrent filesystem changes. Foundation metadata still includes pathname queries bracketed by descriptor checks; there is no atomic filesystem snapshot. Removal-time checks, a review interface, pre-removal manifests, and the single Trash gateway remain future work. See [scanner boundaries](docs/SCANNING.md) and [the test plan and its limits](docs/TESTING.md).
 
 Rule JSON is untrusted input to validation. A rule must never authorize its own safe root. Prefer conservative refusal when ownership or path identity cannot be established.
 

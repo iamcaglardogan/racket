@@ -21,6 +21,10 @@ There are no releases yet.
 - 31 PathGuard tests, including 10,000 generated adversarial paths, and 31 rule-validation tests using synthetic data.
 - CI source-policy guardrails for selected destructive/networking APIs, misplaced Trash calls, and UI imports in the core.
 - Testing documentation that records unverified dataless hydration, live mount transitions, directory-descendant safety, and the remaining Trash race.
+- Phase 2 read-only bulk directory walker, dataless metadata gates and per-thread materialization policy, with regular-file findings and visible skip/refusal/incomplete reasons.
+- Bounded scan orchestration, cancellation, per-module path progress, age/explicit backup filters, deterministic overlap and hard-link deduplication, and checked `UInt64` allocated-size totals.
+- Scanner architecture and verification notes separating allocated observations from reclaimable physical space, and synthetic metadata checks from cloud-provider integration.
+- 84 additional tests; the 146-test suite passed in SwiftPM and Xcode, alongside universal build and source guardrails.
 
 ### Changed
 
@@ -28,8 +32,12 @@ There are no releases yet.
 - Confirmed `io.github.iamcaglardogan.racket` as the application identifier.
 - Documented the Phase 0 build commands, local Xcode limitation, and separation between core checks and application validation.
 - Recorded owner acceptance of Phase 0 and prepared the Phase 1 trust-core checkpoint for separate pull-request review.
+- Recorded owner acceptance and explicit merge approval of Phases 1 and 2. [Pull request 1](https://github.com/iamcaglardogan/racket/pull/1) is merged into main; [pull request 2](https://github.com/iamcaglardogan/racket/pull/2) records the accepted scanner checkpoint.
+
+### Fixed
+
+- Scanner hard-link observations now bind to verified parent entries and fresh no-follow identities, rather than assuming a regular inode has one reverse-resolved path. Added name-cache and ordinary-file substitution regressions.
 
 ### Pending
 
 - Owner confirmation of shipping CLI scope and final network policy.
-- Phase 1 owner review before merging `phase-1-trust-core` or beginning Phase 2.

@@ -70,6 +70,7 @@ public struct Rule: Codable, Equatable, Sendable {
     public let citation: String
     public let verified: Bool
     public let enabled: Bool
+    public let skipExcludedFromBackup: Bool
 
     /// Eligibility only; this is not user approval or a removal capability.
     /// Judgement data is ineligible even when its rule is verified and enabled.
@@ -79,7 +80,7 @@ public struct Rule: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey, CaseIterable {
         case id, module, title, producers, paths, match, conditions, risk
-        case reason, regenerationCost, citation, verified, enabled
+        case reason, regenerationCost, citation, verified, enabled, skipExcludedFromBackup
     }
 
     public init(from decoder: any Decoder) throws {
@@ -100,6 +101,8 @@ public struct Rule: Codable, Equatable, Sendable {
         // and non-boolean flags are malformed, rather than another spelling of false.
         verified = values.contains(.verified) ? try values.decode(Bool.self, forKey: .verified) : false
         enabled = values.contains(.enabled) ? try values.decode(Bool.self, forKey: .enabled) : false
+        skipExcludedFromBackup = values.contains(.skipExcludedFromBackup)
+            ? try values.decode(Bool.self, forKey: .skipExcludedFromBackup) : false
 
         try requireRuleText(id, field: "id", maximumBytes: 256)
         let identifierCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
