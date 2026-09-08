@@ -1,6 +1,6 @@
 # Contributing to RACKET
 
-RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). The owner authorized Phase 2 read-only scanning after the Phase 1 checkpoint. `phase-2-read-only-scanner` is based on `phase-1-trust-core`; the Phase 1 pull request remains draft and unmerged. Continuing implementation does not itself approve a merge. Removal, verified creative rules, and product interface work belong to later phases.
+RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). The owner accepted Phases 1 and 2 and explicitly approved merging pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2). Pull request 1 is merged into main. Phase 3 has not started. Removal, verified creative rules, and product interface work belong to later phases.
 
 ## Build and verify
 

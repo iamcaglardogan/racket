@@ -2,7 +2,7 @@
 
 A planned free, open-source, native macOS application for understanding disk usage and reviewing recoverable cleanup, with particular attention to creative work.
 
-**Status: Phase 2 read-only scanner verified in CI; owner review pending.** RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. The owner authorized Phase 2 after the Phase 1 checkpoint. The `phase-2-read-only-scanner` branch builds on `phase-1-trust-core`; the Phase 1 pull request remains draft and unmerged. Cleanup, recovery, and product views are not implemented. Phase 2 passed its [build and test checks](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) and stops here for review.
+**Status: Phases 1 and 2 verified in CI and accepted by the owner.** RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. The owner explicitly approved merging pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2). Pull request 1 is merged into main. Cleanup, recovery, and product views are not implemented. Phase 2 passed its [build and test checks](https://github.com/iamcaglardogan/racket/actions/runs/34165070143). Phase 3 has not started.
 
 The compiled path policy currently permits only the current user's `Library/Caches` and `Library/Logs` as rule locations. It refuses the roots themselves as removal candidates and independently checks protected project formats, original-media and autosave names, preferences, cloud-container names, and `.git` paths. The bundled rule document is deliberately empty: no application cache path has been verified or enabled.
 
@@ -50,8 +50,8 @@ Each phase stops for the owner's review before the next begins:
 | Phase | Deliverable | Status |
 | --- | --- | --- |
 | 0 | Repository structure, XcodeGen configuration, Makefile, CI, empty buildable targets | Accepted by the owner |
-| 1 | PathGuard tests first, PathGuard, rule model and validation | Verified in CI; owner authorized Phase 2; draft pull request unmerged |
-| 2 | Headless scanner and synthetic fixtures | Verified in CI; owner review pending |
+| 1 | PathGuard tests first, PathGuard, rule model and validation | Verified in CI; accepted by the owner and merged |
+| 2 | Headless scanner and synthetic fixtures | Verified in CI; accepted by the owner; merge explicitly approved |
 | 3 | Manifest, removal, and undo round trip | Not started |
 | 4 | Verified creative rules and project grouping | Not started |
 | 5 | Design tokens and reviewed DESIGN.md, then SwiftUI views | Not started |

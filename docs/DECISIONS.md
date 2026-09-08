@@ -28,7 +28,7 @@ The owner accepted Phase 0 by asking to continue. Its empty app entry point exis
 
 ## Phase 1 scope and review
 
-Phase 1 implements `SafeRoots`, read-only `PathGuard` validation and identity receipts, the declarative rule model and bundle loader, and source-policy checks. Its 62 XCTest cases comprise 31 PathGuard tests, including 10,000 generated adversarial path cases, and 31 rule tests. CI verification passed, and the owner authorized Phase 2 after the checkpoint. [Pull request 1](https://github.com/iamcaglardogan/racket/pull/1) remains draft and unmerged; explicit approval of that merge is pending.
+Phase 1 implements `SafeRoots`, read-only `PathGuard` validation and identity receipts, the declarative rule model and bundle loader, and source-policy checks. Its 62 XCTest cases comprise 31 PathGuard tests, including 10,000 generated adversarial path cases, and 31 rule tests. CI verification passed, and the owner authorized Phase 2 after the checkpoint. [Pull request 1](https://github.com/iamcaglardogan/racket/pull/1) was merged into main after the owner's explicit approval.
 
 Only `~/Library/Caches` and `~/Library/Logs` are compiled rule roots. A root may be a directory-contents rule location but never a removal candidate. Independent protected-name checks cover preferences, project files and packages, original media, autosaves, cloud paths, and `.git`. Additional roots need a separate safety justification and adversarial coverage.
 
@@ -40,7 +40,7 @@ The loader rejects unknown fields, duplicate JSON keys including escaped equival
 
 ## Phase 2 scope and review
 
-The owner asked to continue after the Phase 1 checkpoint. Work proceeds on `phase-2-read-only-scanner`, based on the still-unmerged Phase 1 branch. Its review must remain separate, and Phase 3 does not begin before this checkpoint is reviewed.
+The owner authorized Phase 2 after the Phase 1 checkpoint. It was developed on `phase-2-read-only-scanner`, originally based on `phase-1-trust-core`. The owner accepted the scanner checkpoint and explicitly approved merging [pull request 2](https://github.com/iamcaglardogan/racket/pull/2). Phase 3 has not started.
 
 The implementation uses bulk names/flags enumeration, compiled path boundaries, no-follow descriptors, a synchronous thread policy preventing dataless materialization, explicit metadata gates, regular-file findings, Foundation total allocated size, and bounded per-module orchestration. Read [SCANNING.md](SCANNING.md) for the decision rationale, limits, scheduling, and counting semantics.
 
@@ -56,7 +56,7 @@ XCTest requires a suitable toolchain; Command Line Tools alone are not sufficien
 
 Application presence does not verify a cleanup rule. Cache paths, project attribution, running-process behavior, and deletion safety have not been verified. No cache rule is enabled or shipped.
 
-Phase 2 has 146 XCTest cases in total. The updated core compiled locally, source guardrails passed, and 57 narrow metadata/walker/parser smoke cases passed against synthetic fixtures. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in both test runners, source guardrails, and the universal build; owner review remains pending. No test scans the real home directory or deletes its fixtures.
+Phase 2 has 146 XCTest cases in total. The updated core compiled locally, source guardrails passed, and 57 narrow metadata/walker/parser smoke cases passed against synthetic fixtures. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in both test runners, source guardrails, and the universal build; the owner accepted the checkpoint and explicitly approved its merge. No test scans the real home directory or deletes its fixtures.
 
 ## Interface proposal for later review
 

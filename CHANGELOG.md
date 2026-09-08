@@ -32,7 +32,7 @@ There are no releases yet.
 - Confirmed `io.github.iamcaglardogan.racket` as the application identifier.
 - Documented the Phase 0 build commands, local Xcode limitation, and separation between core checks and application validation.
 - Recorded owner acceptance of Phase 0 and prepared the Phase 1 trust-core checkpoint for separate pull-request review.
-- Recorded authorization to continue into Phase 2 on `phase-2-read-only-scanner`, based on the still-unmerged `phase-1-trust-core` branch.
+- Recorded owner acceptance and explicit merge approval of Phases 1 and 2. [Pull request 1](https://github.com/iamcaglardogan/racket/pull/1) is merged into main; [pull request 2](https://github.com/iamcaglardogan/racket/pull/2) records the accepted scanner checkpoint.
 
 ### Fixed
 
@@ -41,5 +41,3 @@ There are no releases yet.
 ### Pending
 
 - Owner confirmation of shipping CLI scope and final network policy.
-- Explicit merge approval for the draft Phase 1 pull request.
-- Phase 2 owner checkpoint review before Phase 3.
