@@ -195,7 +195,8 @@ private struct CollectedScan {
             findings.append(Finding(
                 resolvedPath: file.resolvedPath, allocatedSize: file.allocatedSize,
                 modifiedAt: file.modifiedAt, ruleID: job.rule.id, module: job.rule.module,
-                risk: job.rule.risk, reason: job.rule.reason, regenerationCost: job.rule.regenerationCost
+                risk: job.rule.risk, reason: job.rule.reason, regenerationCost: job.rule.regenerationCost,
+                observation: file.observation
             ))
         }
     }

@@ -6,11 +6,11 @@ Use [GitHub's private vulnerability reporting form](https://github.com/iamcaglar
 
 Include the affected commit or release, macOS version, rule identifier if relevant, expected behavior, and steps to reproduce with synthetic files where possible. Share a redacted manifest only when it helps explain the issue. There is no response-time guarantee at this preparation stage.
 
-If an eventual build moves an unexpected item to Trash, stop that removal session, preserve its manifest, and avoid emptying Trash. Recovery is planned but not implemented in this repository yet.
+If a development build moves an unexpected item, stop that removal session and preserve its manifest, authentication key, and recorded locations. Avoid emptying Trash. The headless undo implementation can attempt recovery only when the journal and file identity are valid; an uncertain or missing location may need manual review. Do not retry a damaged journal or guess recovery paths by filename.
 
 ## Supported versions
 
-There are no releases or distributed builds yet. The core includes headless read-only scanning, the path guard, and the rule validator; its 146-test suite and universal build passed CI. The bundled rule document remains empty, and there is no cleanup feature or product interface. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
+There are no releases or distributed builds yet. Phases 1 and 2 are merged; their 146-test suite and universal build passed CI. Phase 3 adds headless removal, authenticated session records, and undo, with verification and owner review pending. The bundled rule document remains empty, and there is no product interface. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
 
 ## Threat model
 
@@ -20,7 +20,11 @@ Phase 1 implements compiled cache/log roots, independent protected-path checks, 
 
 Phase 2 adds bounded directory enumeration, per-child path checks, regular-file findings, and visible skip/refusal/incomplete issues. The synchronous walk disables dataless materialization for its thread, checks descriptor flags and URL cloud metadata before size access, and restores the prior thread policy. Synthetic metadata tests cannot prove that every real cloud provider avoids hydration; that integration remains unverified.
 
-A successful path check or scan finding is an observation, not permission to remove unexamined descendants or a guarantee against all concurrent filesystem changes. Foundation metadata still includes pathname queries bracketed by descriptor checks; there is no atomic filesystem snapshot. Removal-time checks, a review interface, pre-removal manifests, and the single Trash gateway remain future work. See [scanner boundaries](docs/SCANNING.md) and [the test plan and its limits](docs/TESTING.md).
+A successful path check or scan finding is an observation, not permission to remove unexamined descendants or a guarantee against all concurrent filesystem changes. Phase 3 revalidates the observation and rule, accepts only resident ordinary files owned by the current non-root user with one link, and moves them through private staging before the single Foundation Trash gateway. A review interface remains future work; the core's explicit selection parameter cannot itself prove human review.
+
+The local manifest uses a chained HMAC-SHA256 record format, a 0600 key and journals inside a 0700 directory, bounded parsing, file locks, and `fsync` before mutation. Authentication is local integrity protection, not encryption or a public digital signature. Anyone with the same user's key access can forge records, and truncation to a valid complete prefix is not detectable. Paths in exported journals remain sensitive; export verifies bytes but does not redact them. There is no network export endpoint.
+
+Private staging narrows exposure to pathname substitution but is not isolation from another process running with the same UID. The Foundation Trash call still has a final pathname race; metadata checks and retained descriptors do not make it atomic. A final journal failure may leave a moved item without a durable Trash URL. Undo refuses unknown identities, occupied destinations, absent parents, malformed histories, and guessed locations. Real Foundation Trash and cloud-provider integration are unverified. See [removal and recovery boundaries](docs/REMOVAL.md), [scanner boundaries](docs/SCANNING.md), and [the test plan and its limits](docs/TESTING.md).
 
 Rule JSON is untrusted input to validation. A rule must never authorize its own safe root. Prefer conservative refusal when ownership or path identity cannot be established.
 

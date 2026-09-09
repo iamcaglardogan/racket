@@ -17,7 +17,7 @@ Phase 1 tests are written before the PathGuard implementation. They exercise the
 
 ## Phase 2 checks
 
-The suite now contains 146 XCTest cases: 62 Phase 1 cases plus 3 backup-rule cases, 8 bulk-parser cases, 21 walker/integration cases, 24 engine cases, and 28 metadata/size cases. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in SwiftPM and Xcode, source checks, and the universal build. Local core compilation and 57 narrow scanner/size/parser smoke cases passed; these checks do not substitute for XCTest execution.
+The verified Phase 2 baseline contains 146 XCTest cases: 62 Phase 1 cases plus 3 backup-rule cases, 8 bulk-parser cases, 21 walker/integration cases, 24 engine cases, and 28 metadata/size cases. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in SwiftPM and Xcode, source checks, and the universal build. Local core compilation and 57 narrow scanner/size/parser smoke cases passed; these checks do not substitute for XCTest execution.
 
 | Boundary | Evidence |
 | --- | --- |
@@ -33,13 +33,33 @@ The fixtures are read from source using the test's compile-time file location, n
 
 `SF_DATALESS` is read-only synthetic metadata in the macOS SDK, not a flag that an unprivileged test can faithfully set on a normal file. Instrumented operations test the refusal logic; they do not reproduce a provider. Actual iCloud/File Provider integration, separate mounted volumes, macOS 14 runtime, and representative speed benchmarks remain outstanding. [SCANNING.md](SCANNING.md) explains the synchronous kernel policy and the remaining pathname-observation limits.
 
+## Phase 3 checks
+
+Phase 3 adds the cases below. Test execution and CI results are pending; this section describes assertions in the source, not passed checks.
+
+| Boundary | Added assertions |
+| --- | --- |
+| Scan observations | Live fingerprints survive walker/engine conversion; synthetic defaults remain unobserved; replacing a file with the same size and restored modification time changes its observation |
+| Removal selection | Missing observations and duplicate paths are rejected before session creation; rules, depth, age, allocation, and current identity are rechecked; hard links are skipped |
+| Transaction order | Prepared and staged records exist before the fake Trash call; failure before intent leaves sources in place; failures after capture preserve recoverable evidence; failed final records stop the batch |
+| Concurrent changes | Original-file, symlink, staging, and ancestor substitutions cannot produce trusted success; rollback conflicts preserve both files |
+| Journal integrity | App/rule-set versions, dates, all event actions, and UInt64 bounds survive authentication; tampering, record reordering, duplicate records, cross-session replay, and partial tails are refused |
+| Journal filesystem | Persistent keys reopen existing sessions; symlinks, hard links, unsafe modes, access-granting ACLs, and directory replacement are refused; synchronization errors remain visible; operation locks serialize store instances |
+| Undo | Round trip to the original path; exact recorded identities; no overwrite when a destination already exists or appears after intent; no parent recreation; missing and unrecognized recovery locations are reported |
+| Interrupted recovery | Recover verified staging records; validate the whole history before any move; resume interrupted restore only with matching identity; no same-name inference; journal failure stops subsequent items |
+| Dataless and cancellation | Injected dataless states stop before explicit stat/size/Trash work; cancellation between items stops further namespace changes |
+
+The [removal](../Tests/RemovalEngineTests/RemovalEngineTests.swift), [manifest](../Tests/RemovalEngineTests/ManifestTests.swift), [undo](../Tests/RemovalEngineTests/UndoServiceTests.swift), and [observation](../Tests/ScanEngineTests/RemovalObservationTests.swift) suites use unique synthetic homes under `/private/tmp`. The fake Trash transport renames fixture files to another fixture directory. Descriptor lookup, rename, metadata, journal files, authentication, and synchronization use actual local implementations, with injected failures at selected boundaries. All fixtures remain preserved; neither the user's home nor real Trash is scanned or mutated.
+
+These tests do **not** exercise `FileManager.trashItem`, Foundation's recognition of the actual Trash directory, Finder's Put Back behavior, real cloud providers, separately mounted volumes, or a power-loss crash. Synchronized writes and injected failures do not establish durability under every storage failure. A successful fake-transport round trip is not evidence of a real Foundation Trash round trip.
+
 ## Limits and later phases
 
-PathGuard is a read-only path and identity check. A successful check is not authority to remove a directory's unexamined descendants. The scanner and removal engine must validate their own scope and every protected descendant before treating any directory as a removal unit.
+PathGuard is a read-only path and identity check. A successful check is not authority to remove a directory's unexamined descendants. The scanner and removal engine validate their own scope. Removal supports individual ordinary files only; directory removal would require a separate descendant-safety design.
 
-An identity receipt is an observation, not an atomic filesystem transaction. Revalidation detects the tested substitutions, but a pathname-based Trash operation has a remaining race window. Phase 3 must address and document that boundary; it must not claim that two path checks close every race.
+An identity receipt is an observation, not an atomic filesystem transaction. Phase 3 rechecks the original observation and uses private staging before Trash. A last-moment source replacement can be captured and then refused, requiring review; the capture does not guarantee that no unrelated file was moved. The final Foundation pathname call has a remaining race window, and private permissions do not isolate another process with the same UID. [REMOVAL.md](REMOVAL.md) documents these boundaries and uncertain journal outcomes.
 
-Phase 2 implements metadata gates, size accounting, traversal depth, and cancellation tests. Manifest ordering and actual Trash/undo round trips remain Phase 3. No scanner production path opens regular-file content. Mount-boundary logic still needs coverage on separately mounted test volumes before broader roots are enabled.
+Phase 2 implements metadata gates, size accounting, traversal depth, and cancellation tests. Phase 3 adds manifest ordering and synthetic transport round trips; actual Foundation Trash/undo integration remains outstanding. No scanner production path opens regular-file content. Mount-boundary logic still needs coverage on separately mounted test volumes before broader roots are enabled.
 
 macOS CI executes with Xcode 16.4 on macOS 15. Its deployment target is macOS 14; that is not a substitute for runtime testing on macOS 14. Command Line Tools can compile the core, but running XCTest requires a toolchain containing that framework.
 

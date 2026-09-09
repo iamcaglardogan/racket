@@ -11,6 +11,25 @@ public struct Finding: Equatable, Sendable {
     public let risk: Rule.Risk
     public let reason: String
     public let regenerationCost: String
+    /// Retained only from the live scan; consumers must revalidate it before
+    /// mutation. A synthetic finding without an observation grants no authority.
+    let observation: ScanMetadataFingerprint?
+
+    init(
+        resolvedPath: String, allocatedSize: UInt64, modifiedAt: Date,
+        ruleID: String, module: Rule.Module, risk: Rule.Risk, reason: String,
+        regenerationCost: String, observation: ScanMetadataFingerprint? = nil
+    ) {
+        self.resolvedPath = resolvedPath
+        self.allocatedSize = allocatedSize
+        self.modifiedAt = modifiedAt
+        self.ruleID = ruleID
+        self.module = module
+        self.risk = risk
+        self.reason = reason
+        self.regenerationCost = regenerationCost
+        self.observation = observation
+    }
 
     public var isPreselectable: Bool { risk != .judgement }
 }

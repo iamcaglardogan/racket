@@ -2,11 +2,11 @@
 
 A planned free, open-source, native macOS application for understanding disk usage and reviewing recoverable cleanup, with particular attention to creative work.
 
-**Status: Phases 1 and 2 verified in CI and accepted by the owner.** RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. The owner explicitly approved merging pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2). Pull request 1 is merged into main. Cleanup, recovery, and product views are not implemented. Phase 2 passed its [build and test checks](https://github.com/iamcaglardogan/racket/actions/runs/34165070143). Phase 3 has not started.
+**Status: Phase 3 removal and recovery are in development; verification and owner review are pending.** RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. Phases 1 and 2 passed CI, were accepted by the owner, and are merged through pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2). Phase 3 adds a headless removal boundary, authenticated session records, and undo. Product views are not implemented, and no cleanup rule is enabled.
 
 The compiled path policy currently permits only the current user's `Library/Caches` and `Library/Logs` as rule locations. It refuses the roots themselves as removal candidates and independently checks protected project formats, original-media and autosave names, preferences, cloud-container names, and `.git` paths. The bundled rule document is deliberately empty: no application cache path has been verified or enabled.
 
-`PathGuard` walks path components through metadata-only, no-follow descriptors and records file and ancestor identities for revalidation. Phase 2 adds bounded bulk directory enumeration, regular-file findings with rule explanations, dataless metadata gates, allocated-size accounting, and cancellation. Its reported bytes are observations, not a promise of physically reclaimable space. No directory becomes a removal candidate merely because its files were scanned. Real cloud-placeholder behavior, separately mounted volumes, and the remaining removal race still need verification. See the [scanner design](docs/SCANNING.md) and [testing scope and limits](docs/TESTING.md).
+`PathGuard` walks path components through metadata-only, no-follow descriptors and records file and ancestor identities for revalidation. Phase 2 adds bounded bulk directory enumeration, regular-file findings with rule explanations, dataless metadata gates, allocated-size accounting, and cancellation. Its reported bytes are observations, not a promise of physically reclaimable space. Phase 3 rechecks an explicit reviewed selection against its scan observations and rules before moving individual files. No directory becomes a removal candidate merely because its files were scanned. See the [scanner design](docs/SCANNING.md), [removal and recovery boundaries](docs/REMOVAL.md), and [testing scope and limits](docs/TESTING.md).
 
 ## Product direction
 
@@ -37,7 +37,9 @@ These are requirements for the implementation, not claims about a tested product
 
 ## Storage and recovery
 
-Planned removal sessions record original paths and resulting Trash paths in a manifest. Undo can restore items that remain in Trash, subject to destination conflicts and permissions. Recovery is no longer available from Trash after the user empties it; the interface must state that limitation.
+The headless removal engine accepts an explicit selection of up to 256 observed files. It writes an authenticated session record before each move, uses a private staging location inside the existing safe root, then records the actual location returned by macOS Trash. Undo checks the recorded identity and restores to the original path without overwriting an existing item or creating missing parent directories. Missing or uncertain items require review; it never searches for a replacement by filename.
+
+The production Trash call and real cloud providers have not been exercised by the Phase 3 fixtures. Tests use synthetic temporary homes and a fake Trash transport with real Darwin moves and journal files. The final Foundation pathname operation still has a race window, and private directory permissions do not isolate other processes running as the same user. A failed final journal write can leave a moved item without a durable Trash path. These limits are detailed in [REMOVAL.md](docs/REMOVAL.md). Recovery is unavailable once an item is no longer present at a verifiable recovery location; emptying Trash can make that permanent.
 
 Purgeable storage is managed by macOS. It is not guaranteed free space and will not be advertised as space this application can reclaim. A planned storage panel will explain the difference between filesystem free space and Finder's more optimistic figure.
 
@@ -51,8 +53,8 @@ Each phase stops for the owner's review before the next begins:
 | --- | --- | --- |
 | 0 | Repository structure, XcodeGen configuration, Makefile, CI, empty buildable targets | Accepted by the owner |
 | 1 | PathGuard tests first, PathGuard, rule model and validation | Verified in CI; accepted by the owner and merged |
-| 2 | Headless scanner and synthetic fixtures | Verified in CI; accepted by the owner; merge explicitly approved |
-| 3 | Manifest, removal, and undo round trip | Not started |
+| 2 | Headless scanner and synthetic fixtures | Verified in CI; accepted by the owner and merged |
+| 3 | Manifest, removal, and undo round trip | Implementation and synthetic tests added; verification and owner review pending |
 | 4 | Verified creative rules and project grouping | Not started |
 | 5 | Design tokens and reviewed DESIGN.md, then SwiftUI views | Not started |
 | 6 | Permissions, onboarding, and menu bar | Not started |
@@ -71,13 +73,13 @@ make test
 
 These commands generate `RACKET.xcodeproj` from `project.yml` and use the `RACKET` scheme. The generated project is not committed. Development builds do not require an Apple Developer Team ID; distribution signing is deferred to Phase 9.
 
-For contributors with Swift 6 Command Line Tools, the Foundation-only core can be compiled separately:
+For contributors with Swift 6 Command Line Tools, the headless core can be compiled separately. It uses Apple Foundation, Darwin, and CryptoKit without third-party packages:
 
 ```sh
 make core-build
 ```
 
-`make core-test` runs the headless XCTest suite and requires a toolchain containing XCTest, such as full Xcode. Command Line Tools installations without XCTest can run `make core-build` only. The Phase 1 baseline contains 31 PathGuard tests, including 10,000 generated adversarial path cases, and 31 rule-validation tests. Phase 2 adds 84 cases, bringing the suite to 146 tests. Tests use synthetic paths and isolated temporary fixtures; they do not scan the real home directory. Core tests do not validate the application or a complete cleanup flow.
+`make core-test` runs the headless XCTest suite and requires a toolchain containing XCTest, such as full Xcode. Command Line Tools installations without XCTest can run `make core-build` only. The verified Phase 2 baseline contains 146 tests, including 10,000 generated adversarial path cases. Phase 3 adds scan-observation, manifest, removal, and undo cases; its execution results are pending. Tests use synthetic paths and isolated temporary fixtures; they do not scan or mutate the real home directory or real Trash. Core tests do not validate the product interface or a live Foundation Trash round trip.
 
 `make check-policy` checks selected destructive APIs, Trash calls outside the removal boundary, unapproved networking APIs, and UI imports in the core. CI runs this source check as an additional guardrail; pattern matching is not proof of runtime safety.
 

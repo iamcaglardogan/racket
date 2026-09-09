@@ -133,7 +133,8 @@ public struct DirectoryWalker: Sendable {
                         if metadata.kind == .regularFile {
                             state.files.append(ScannedFile(
                                 resolvedPath: childPath, allocatedSize: metadata.allocatedSize,
-                                modifiedAt: metadata.modifiedAt, identity: metadata.identity
+                                modifiedAt: metadata.modifiedAt, identity: metadata.identity,
+                                observation: metadata.fingerprint
                             ))
                         } else if depth + 1 < maxDepth {
                             let next = OpenScanDirectory(
