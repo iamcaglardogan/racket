@@ -247,6 +247,26 @@ final class RemovalEngineTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    func testHardLinkAliasLookupStillProducesAnExplicitSkip() async throws {
+        let fixture = try RemovalFixture()
+        XCTAssertEqual(link(fixture.file, fixture.preserved), 0)
+        let findings = try await fixture.findings()
+        var metadata = ScanMetadataOperations.live
+        metadata.allocatedSize = { path in
+            let bytes = try ScanMetadataOperations.live.allocatedSize(path)
+            let alias = Darwin.open(fixture.preserved, O_EVTONLY | O_NOFOLLOW | O_CLOEXEC)
+            guard alias >= 0 else { throw RemovalSafetyError.system(errno) }
+            _ = Darwin.close(alias)
+            return bytes
+        }
+        let engine = RemovalEngine(policy: fixture.policy, manifest: fixture.manifest,
+                                   operations: fixture.operations, calculator: SizeCalculator(operations: metadata))
+        let result = try await engine.moveToTrash(reviewedFindings: findings, ruleSet: fixture.rules, appVersion: "test")
+        XCTAssertEqual(result.results.map(\.outcome), [.skipped])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fixture.file))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fixture.preserved))
+    }
+
     func testDatalessGatePrecedesStatSizeAndTrash() async throws {
         let fixture = try RemovalFixture()
         let findings = try await fixture.findings()

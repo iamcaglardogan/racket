@@ -129,6 +129,11 @@ struct RemovalFileSystem: Sendable {
             let metadata = try calculator.inspect(descriptor: child.value, path: prefix,
                                                   includeSize: last && includeSize,
                                                   skipExcludedFromBackup: last && skipBackup)
+            // F_GETPATH cannot bind a multiply linked inode to a unique name.
+            // These files are unsupported here; classify them before that lookup.
+            if metadata.kind == .regularFile, metadata.fingerprint.links != 1 {
+                throw RemovalSafetyError.multipleLinks
+            }
             _ = try child.requireLocalVolume()
             try child.requirePath(prefix)
             if metadata.kind == .directory { try child.requireTrustedDirectory(metadata, path: prefix) }
