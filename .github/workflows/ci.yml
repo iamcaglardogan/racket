@@ -43,6 +43,9 @@ jobs:
       - name: Run the Xcode test target
         run: make test
 
+      - name: Verify Foundation Trash with a disposable test account
+        run: bash scripts/check-live-trash.sh
+
       - name: Verify both binary architectures
         run: |
           lipo build/DerivedData/Build/Products/Release/RACKET.app/Contents/MacOS/RACKET -verify_arch arm64 x86_64

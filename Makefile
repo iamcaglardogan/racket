@@ -31,6 +31,7 @@ check-xcode:
 	@bash scripts/check-xcode.sh
 
 check-policy:
+	python3 scripts/test-source-policy.py
 	python3 scripts/check-source-policy.py
 
 build: check-xcode project
