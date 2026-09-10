@@ -82,7 +82,8 @@ user_record="/Users/$fixture_account"
 /usr/bin/sudo -n /usr/bin/dscl . -create "$user_record"
 /usr/bin/sudo -n /usr/bin/dscl . -create "$user_record" UniqueID "$fixture_id"
 /usr/bin/sudo -n /usr/bin/dscl . -create "$user_record" PrimaryGroupID "$fixture_id"
-/usr/bin/sudo -n /usr/bin/dscl . -create "$user_record" GeneratedUID "$fixture_uuid"
+# Directory Services assigns its own immutable GeneratedUID on creation.
+# The fixture UUID identifies only our new account name and temporary path.
 /usr/bin/sudo -n /usr/bin/dscl . -create "$user_record" NFSHomeDirectory "$fixture_home"
 /usr/bin/sudo -n /usr/bin/dscl . -create "$user_record" UserShell /usr/bin/false
 /usr/bin/sudo -n /usr/bin/dscl . -create "$user_record" Password '*'
