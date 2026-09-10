@@ -11,6 +11,7 @@ if [[ "$(/usr/bin/uname -s)" != "Darwin" || "$(/usr/bin/id -u)" == "0" ]]; then
   printf '%s\n' 'The fixture setup must start as the non-root GitHub runner user.' >&2
   exit 1
 fi
+trap 'printf "Live Trash fixture setup failed at script line %s; account and files are preserved.\n" "$LINENO" >&2' ERR
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd -P)"
 shopt -s nullglob
