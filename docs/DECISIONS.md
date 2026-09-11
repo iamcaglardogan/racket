@@ -40,13 +40,27 @@ The loader rejects unknown fields, duplicate JSON keys including escaped equival
 
 ## Phase 2 scope and review
 
-The owner authorized Phase 2 after the Phase 1 checkpoint. It was developed on `phase-2-read-only-scanner`, originally based on `phase-1-trust-core`. The owner accepted the scanner checkpoint and explicitly approved merging [pull request 2](https://github.com/iamcaglardogan/racket/pull/2). Phase 3 has not started.
+The owner authorized Phase 2 after the Phase 1 checkpoint. It was developed on `phase-2-read-only-scanner`, originally based on `phase-1-trust-core`. The owner accepted the scanner checkpoint and explicitly approved merging [pull request 2](https://github.com/iamcaglardogan/racket/pull/2), which is now merged into main.
 
 The implementation uses bulk names/flags enumeration, compiled path boundaries, no-follow descriptors, a synchronous thread policy preventing dataless materialization, explicit metadata gates, regular-file findings, Foundation total allocated size, and bounded per-module orchestration. Read [SCANNING.md](SCANNING.md) for the decision rationale, limits, scheduling, and counting semantics.
 
 The optional schema-1 Boolean `skipExcludedFromBackup` defaults to false. No protected roots or match modes are added. Direct files have depth 1; directories at the maximum depth are reported as limited, never emitted as findings. Overlapping paths and hard links count once, with deterministic rule ownership. APFS clone sharing is not quantified, and reported allocation is not a claim of bytes that deletion would free.
 
 The brief's request to synthesize actual dataless files cannot be met by setting SF_DATALESS on ordinary unprivileged fixtures: the SDK marks it read-only. This checkpoint uses injected flags/cloud metadata and explicit operation-order tests, supplemented by actual policy-restoration and ordinary-file checks. Genuine provider integration remains a separate prerequisite to broader enabled rules and distribution.
+
+## Phase 3 scope and review
+
+The owner authorized Phase 3 by asking to continue after the merged Phase 1 and 2 checkpoints. Development is on `codex/phase-3-removal-recovery`. Its synthetic suite and guarded ordinary-file Foundation Trash/public-undo integration passed CI. Owner acceptance remains pending in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3). Phase 4 has not started.
+
+`RemovalEngine` and `UndoService` are actors whose filesystem operations remain synchronous under the no-materialization thread policy. Removal accepts an explicit reviewed selection of at most 256 observed files, rechecks current rule scope and metadata, and requires ordinary single-link files owned by the current non-root user. The scanner now retains its complete internal metadata fingerprint; manufactured findings without that observation cannot enter a removal session.
+
+Each file is first moved with an exclusive descriptor-relative rename into a private `.racket-staging` reservation inside its existing safe root. That name is excluded from rule declarations and findings. After identity revalidation and durable records, the sole production Trash call uses Foundation. This capture narrows exposure to replacement at the original name, but it neither closes Foundation's final pathname race nor isolates other processes running as the same user.
+
+`ManifestStore` appends bounded NDJSON records authenticated with HMAC-SHA256 using Apple's CryptoKit framework. A session header records app and rule-set versions; each event records intent or outcome with paths, rule ID, allocated size, and file identity. Private file modes, no-follow opens, cross-instance file locks, and `fsync` protect the journal boundary. This introduces no third-party package. Local authentication does not provide confidentiality, prevent same-user forgery, or detect truncation to a complete authenticated prefix.
+
+Undo authenticates and validates the full session history before moving any file. It requires a recorded and verified source, refuses destination conflicts, creates no missing original parent, and never guesses a Trash path by name. Interrupted records remain conservative; a final record failure can require manual recovery. Both services stop processing further items when a journal write fails.
+
+The scope excludes directory removal, multi-link files, elevated privileges, a helper, new cleanup rules, product views, and snapshots. XCTest and local checks use private temporary homes, real Darwin namespace operations and manifests, and a fake Trash transport. They do not exercise a developer’s home, real Trash, or cloud storage. A separate guarded CI integration passed an ordinary-file round trip through actual Foundation Trash and public `UndoService`, using the public current-user APIs under a new synthetic OS account in a disposable GitHub-hosted macOS VM. The account setup assumes no concurrent account creation, and preflight is not an atomic reservation. Foundation’s destination is checked but cannot be pinned by the public API. Provider behavior remains unverified. Read [REMOVAL.md](REMOVAL.md) for failure states, recovery limits, and platform references.
 
 ## Verification status
 
@@ -56,7 +70,9 @@ XCTest requires a suitable toolchain; Command Line Tools alone are not sufficien
 
 Application presence does not verify a cleanup rule. Cache paths, project attribution, running-process behavior, and deletion safety have not been verified. No cache rule is enabled or shipped.
 
-Phase 2 has 146 XCTest cases in total. The updated core compiled locally, source guardrails passed, and 57 narrow metadata/walker/parser smoke cases passed against synthetic fixtures. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in both test runners, source guardrails, and the universal build; the owner accepted the checkpoint and explicitly approved its merge. No test scans the real home directory or deletes its fixtures.
+Phase 2 has 146 XCTest cases in total. The updated core compiled locally, source guardrails passed, and 57 narrow metadata/walker/parser smoke cases passed against synthetic fixtures. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in both test runners, source guardrails, and the universal build; the owner accepted the checkpoint and explicitly approved its merge. Those XCTest cases neither scan a developer’s real home directory nor delete their fixtures.
+
+[Phase 3 PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), at `780a4ad`, passed all 226 XCTest cases in each of SwiftPM and Xcode, source guardrails, the universal `arm64`/`x86_64` build, and entitlements validation. A separate local narrow harness passed 76 cases; it is not XCTest execution. The same run passed the guarded live integration: the ordinary file retained its original inode and bytes through actual Foundation Trash and public undo, and the reopened journal contained all five authenticated removal/restore actions. [TESTING.md](TESTING.md) records the evidence boundaries and remaining platform gaps.
 
 ## Interface proposal for later review
 

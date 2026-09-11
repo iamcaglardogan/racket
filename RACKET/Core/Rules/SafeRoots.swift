@@ -85,7 +85,7 @@ public struct SafeRoots: Sendable {
         // These are user work, not caches. In particular Adobe autosaves and
         // Final Cut Original Media have no optional cleaning override.
         let protectedNames: Set<String> = [
-            ".git", "original media", "auto-save", "adobe premiere pro auto-save",
+            ".git", ".racket-staging", "original media", "auto-save", "adobe premiere pro auto-save",
             "cloudstorage", "mobile documents", "com~apple~clouddocs"
         ]
         let protectedExtensions = [".photoslibrary", ".drp", ".dra", ".lrcat", ".cocatalog"]

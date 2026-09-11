@@ -25,6 +25,12 @@ There are no releases yet.
 - Bounded scan orchestration, cancellation, per-module path progress, age/explicit backup filters, deterministic overlap and hard-link deduplication, and checked `UInt64` allocated-size totals.
 - Scanner architecture and verification notes separating allocated observations from reclaimable physical space, and synthetic metadata checks from cloud-provider integration.
 - 84 additional tests; the 146-test suite passed in SwiftPM and Xcode, alongside universal build and source guardrails.
+- Phase 3 headless removal for explicit reviewed selections of observed, owned single-link files, with independent rule checks and private staging inside the existing safe roots.
+- Authenticated NDJSON session records with app/rule-set versions, pre-move intent, resulting paths, bounded parsing, private key storage, cross-instance locks, and synchronized writes.
+- Undo from verified Trash or staging locations, with exclusive moves, destination-conflict refusal, interrupted-operation handling, and a stop on journal failure.
+- Synthetic scan-observation, manifest, removal, and undo cases using real temporary filesystem operations and a fake Trash transport; [PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad` passed all 226 XCTest cases in SwiftPM and Xcode, source guardrails, the universal build, and entitlements validation.
+- A guarded CI-only live Foundation Trash/undo fixture using public Core APIs under a new synthetic OS account in a disposable GitHub-hosted macOS VM; the same CI run passed the ordinary-file round trip with its original inode, identical bytes, and five authenticated journal actions.
+- Removal and recovery documentation covering the final Foundation pathname race, local authentication limits, uncertain outcomes, and unverified platform integration.
 
 ### Changed
 
@@ -32,7 +38,8 @@ There are no releases yet.
 - Confirmed `io.github.iamcaglardogan.racket` as the application identifier.
 - Documented the Phase 0 build commands, local Xcode limitation, and separation between core checks and application validation.
 - Recorded owner acceptance of Phase 0 and prepared the Phase 1 trust-core checkpoint for separate pull-request review.
-- Recorded owner acceptance and explicit merge approval of Phases 1 and 2. [Pull request 1](https://github.com/iamcaglardogan/racket/pull/1) is merged into main; [pull request 2](https://github.com/iamcaglardogan/racket/pull/2) records the accepted scanner checkpoint.
+- Recorded owner acceptance and merging of Phases 1 and 2 through pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2), and authorization to develop Phase 3.
+- Scanner findings now retain their internal metadata fingerprint for removal-time comparison; `.racket-staging` is reserved from rule paths and findings.
 
 ### Fixed
 
@@ -40,4 +47,5 @@ There are no releases yet.
 
 ### Pending
 
+- Phase 3 owner checkpoint review in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3). Phase 4 has not begun.
 - Owner confirmation of shipping CLI scope and final network policy.

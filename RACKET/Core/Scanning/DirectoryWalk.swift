@@ -6,6 +6,18 @@ public struct ScannedFile: Sendable {
     public let allocatedSize: UInt64
     public let modifiedAt: Date
     let identity: ScanFileIdentity
+    let observation: ScanMetadataFingerprint?
+
+    init(
+        resolvedPath: String, allocatedSize: UInt64, modifiedAt: Date,
+        identity: ScanFileIdentity, observation: ScanMetadataFingerprint? = nil
+    ) {
+        self.resolvedPath = resolvedPath
+        self.allocatedSize = allocatedSize
+        self.modifiedAt = modifiedAt
+        self.identity = identity
+        self.observation = observation
+    }
 }
 
 struct ScanFileIdentity: Hashable, Sendable {
