@@ -1,6 +1,6 @@
 # Contributing to RACKET
 
-RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). The owner accepted Phases 1 and 2, merged through pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2), and authorized Phase 3. Headless removal, manifests, and undo are now in development; verification and the Phase 3 owner checkpoint are pending. Verified creative rules and product interface work remain later phases.
+RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). The owner accepted Phases 1 and 2, merged through pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2), and authorized Phase 3. Headless removal, manifests, and undo passed 226 XCTest cases in both runners and a guarded ordinary-file Foundation Trash/public-undo integration in [CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad`. The Phase 3 owner checkpoint in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3) remains pending. Phase 4 has not begun. Verified creative rules and product interface work remain later phases.
 
 ## Build and verify
 
@@ -34,13 +34,17 @@ Use a fixed reference date and synthetic rule data for exact findings tests. Ass
 
 ## Test data and file safety
 
-Tests use isolated synthetic fixtures. They must never scan or mutate the real home directory, creative projects, application caches, or live cloud storage. No test, teardown, helper script, or scratch utility may permanently delete user-visible content. Test cleanup follows the same safety contract as application code; do not add deletion calls to make a test convenient.
+XCTest and local checks use isolated synthetic fixtures. They must never scan or mutate a developer’s home directory, creative projects, application caches, real Trash, or live cloud storage. No test, teardown, helper script, or scratch utility may permanently delete user-visible content. Test cleanup follows the same safety contract as application code; do not add deletion calls to make a test convenient.
 
-Only `RemovalEngine` may call the Trash API. Phase 3 fixtures retain all files inside unique private temporary homes and use an injected fake Trash transport; they must not invoke the live transport or use the production manifest initializer. Removal tests must record the manifest before invoking the transport and prove that a failure preserves that record. Required adversarial coverage is mapped in SAFETY.md.
+Only `RemovalEngine` may call the Trash API. XCTest and local fixtures retain all files inside unique private temporary homes and use an injected fake Trash transport and manifest location; they must not invoke the live transport or use the production manifest initializer.
+
+The sole exception for live transport and production manifest initialization is the guarded [CI integration fixture](docs/TESTING.md#guarded-live-integration): it runs only on a disposable GitHub-hosted macOS VM under a new synthetic OS account whose actual home is the fixture directory. Never run `scripts/check-live-trash.sh` locally or on a self-hosted runner, and never spoof its environment guards. The fixture must use public Core entry points, with no direct Trash call, and preserve its account and files for the VM’s lifetime. Its account preflight is not an atomic reservation; concurrent account setup is outside this disposable-job assumption.
+
+Removal tests must record the manifest before invoking the transport and prove that a failure preserves that record. Required adversarial coverage is mapped in SAFETY.md.
 
 ## Changing removal or recovery
 
-Read [REMOVAL.md](docs/REMOVAL.md) before changing the transaction order. Preserve synchronous actor operations, the no-materialization thread scope, the cross-instance operation lock, durable intent records, and a stop on journal failure. Accept only explicitly supplied scan observations that still match the current path, metadata, and rule; a public synthetic `Finding` is not a removal authorization.
+Read [REMOVAL.md](docs/REMOVAL.md) before changing the transaction order. Preserve synchronous actor operations, the no-materialization thread scope, the cross-instance operation lock, durable intent records, and a stop on journal failure. Accept only explicitly supplied scan observations that still match the current path, metadata, and rule; a synthetic test `Finding` without the scanner’s internal metadata observation is not a removal authorization. `Finding` has no public initializer.
 
 Test substitutions before and after capture, failed journal writes, uncertain transport outcomes, occupied restore destinations, and interrupted operations. No fallback may overwrite a destination, recreate a missing original parent, move a directory as a removal unit, copy across volumes, or guess a Trash location by name. Keep the remaining Foundation race and the limits of local manifest authentication visible in documentation and review notes.
 

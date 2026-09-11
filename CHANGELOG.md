@@ -28,7 +28,8 @@ There are no releases yet.
 - Phase 3 headless removal for explicit reviewed selections of observed, owned single-link files, with independent rule checks and private staging inside the existing safe roots.
 - Authenticated NDJSON session records with app/rule-set versions, pre-move intent, resulting paths, bounded parsing, private key storage, cross-instance locks, and synchronized writes.
 - Undo from verified Trash or staging locations, with exclusive moves, destination-conflict refusal, interrupted-operation handling, and a stop on journal failure.
-- Synthetic scan-observation, manifest, removal, and undo cases using real temporary filesystem operations and a fake Trash transport; execution evidence is pending.
+- Synthetic scan-observation, manifest, removal, and undo cases using real temporary filesystem operations and a fake Trash transport; [PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad` passed all 226 XCTest cases in SwiftPM and Xcode, source guardrails, the universal build, and entitlements validation.
+- A guarded CI-only live Foundation Trash/undo fixture using public Core APIs under a new synthetic OS account in a disposable GitHub-hosted macOS VM; the same CI run passed the ordinary-file round trip with its original inode, identical bytes, and five authenticated journal actions.
 - Removal and recovery documentation covering the final Foundation pathname race, local authentication limits, uncertain outcomes, and unverified platform integration.
 
 ### Changed
@@ -46,5 +47,5 @@ There are no releases yet.
 
 ### Pending
 
-- Phase 3 verification and owner checkpoint review.
+- Phase 3 owner checkpoint review in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3). Phase 4 has not begun.
 - Owner confirmation of shipping CLI scope and final network policy.

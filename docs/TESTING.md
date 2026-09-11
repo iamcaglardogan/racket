@@ -1,6 +1,6 @@
 # Safety testing
 
-Phase 1 tests are written before the PathGuard implementation. They exercise the public behavior and use synthetic files in unique, private temporary directories. Fixtures are retained; there is no permanent-deletion teardown and no test scans the real home directory.
+Phase 1 tests were written before the PathGuard implementation. XCTest and local checks exercise public behavior with synthetic files in unique, private temporary directories, injected manifest storage, and fake Trash. Fixtures are retained; there is no permanent-deletion teardown, and these checks do not scan or mutate a developer’s home or real Trash. The separate guarded CI integration below is the only live-transport exception.
 
 ## Phase 1 checks
 
@@ -35,7 +35,7 @@ The fixtures are read from source using the test's compile-time file location, n
 
 ## Phase 3 checks
 
-Phase 3 adds the cases below. Test execution and CI results are pending; this section describes assertions in the source, not passed checks.
+[PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), at `780a4ad`, passed all 226 XCTest cases in each of SwiftPM and Xcode, source guardrails, the universal `arm64`/`x86_64` app build, and entitlements validation. A separate local narrow harness passed 76 cases; that is not XCTest execution or a substitute for either CI runner. The following boundaries are covered by the synthetic suite. The owner’s Phase 3 checkpoint review remains pending in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3); Phase 4 has not begun.
 
 | Boundary | Added assertions |
 | --- | --- |
@@ -49,9 +49,21 @@ Phase 3 adds the cases below. Test execution and CI results are pending; this se
 | Interrupted recovery | Recover verified staging records; validate the whole history before any move; resume interrupted restore only with matching identity; no same-name inference; journal failure stops subsequent items |
 | Dataless and cancellation | Injected dataless states stop before explicit stat/size/Trash work; cancellation between items stops further namespace changes |
 
-The [removal](../Tests/RemovalEngineTests/RemovalEngineTests.swift), [manifest](../Tests/RemovalEngineTests/ManifestTests.swift), [undo](../Tests/RemovalEngineTests/UndoServiceTests.swift), and [observation](../Tests/ScanEngineTests/RemovalObservationTests.swift) suites use unique synthetic homes under `/private/tmp`. The fake Trash transport renames fixture files to another fixture directory. Descriptor lookup, rename, metadata, journal files, authentication, and synchronization use actual local implementations, with injected failures at selected boundaries. All fixtures remain preserved; neither the user's home nor real Trash is scanned or mutated.
+The [removal](../Tests/RemovalEngineTests/RemovalEngineTests.swift), [manifest](../Tests/RemovalEngineTests/ManifestTests.swift), [undo](../Tests/RemovalEngineTests/UndoServiceTests.swift), and [observation](../Tests/ScanEngineTests/RemovalObservationTests.swift) suites use unique synthetic homes under `/private/tmp`. The fake Trash transport renames fixture files to another fixture directory. Descriptor lookup, rename, metadata, journal files, authentication, and synchronization use actual local implementations, with injected failures at selected boundaries. All XCTest fixtures remain preserved; neither a developer’s home nor real Trash is scanned or mutated.
 
 These tests do **not** exercise `FileManager.trashItem`, Foundation's recognition of the actual Trash directory, Finder's Put Back behavior, real cloud providers, separately mounted volumes, or a power-loss crash. Synchronized writes and injected failures do not establish durability under every storage failure. A successful fake-transport round trip is not evidence of a real Foundation Trash round trip.
+
+## Guarded live integration
+
+`scripts/check-live-trash.sh` and `scripts/fixtures/LiveTrash.swift` add a separate integration executable outside XCTest and the app targets. **The ordinary-file live round trip passed [CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad`.** It verified actual Foundation Trash followed by public `UndoService`, the original inode and identical bytes, and five authenticated journal actions after reopening the persistent store.
+
+Never run the account-setup script locally or on a self-hosted runner, and never spoof its environment guards. It requires GitHub Actions, a GitHub-hosted macOS runner, Darwin, and a non-root setup process; the workflow selects a disposable `macos-15` VM. Setup creates a fresh 0700 `/Users/RACKET-LiveTrash-<UUID>` directory with `mkdir`, refusing an existing path, and temporarily assigns it to the runner for compilation with Core sources and the SwiftPM resource accessor. It checks account/group names and UID/GID availability, then creates a new account and group with `/Users/RACKET-LiveTrash-<UUID>/Home` as its home, no enabled password, no interactive login shell, and no membership added to existing groups. This live fixture uses `/Users` to keep Foundation’s home spelling canonical; XCTest and local fixtures remain under `/private/tmp`. Setup uses `sudo` and transfers the fixture directory, home, and executable to the new non-root account before running it. Account and files are preserved for the VM’s lifetime.
+
+The name and UID/GID preflight assumes no concurrent account creation in that disposable job. `dscl -create` is not an atomic create-if-absent reservation. The environment checks are guardrails, not a sandbox or protection against someone deliberately bypassing them.
+
+Before writing fixture data, the executable verifies real/effective IDs, supplementary groups, the passwd record, Foundation’s current-user home resolution, and private canonical fixture directories. It creates one ordinary file, uses the public current-user `SafeRoots`, `ScanEngine`, `ManifestStore`, `RemovalEngine`, and `UndoService` APIs, and supplies one explicit synthetic rule and selection. It neither injects a Trash transport nor calls Trash directly; the sole live call remains inside `RemovalEngine`. It checks the returned item’s identity and bytes, reopens the authenticated on-disk journal, restores the original path, and expects the five removal/restore journal actions.
+
+Foundation Trash discovery is checked before removal, and the returned destination is checked afterward. The public Core path cannot pin the destination used by Foundation; these checks do not make the pathname operation atomic or guarantee confinement before the call. The disposable VM and fresh account are the integration environment. This result establishes the ordinary-file public-API round trip on that runner. Same-UID attacker resistance, Finder Put Back, cloud-provider or separate-volume behavior, macOS 14 runtime compatibility, and power-loss durability remain unverified.
 
 ## Limits and later phases
 
@@ -59,7 +71,7 @@ PathGuard is a read-only path and identity check. A successful check is not auth
 
 An identity receipt is an observation, not an atomic filesystem transaction. Phase 3 rechecks the original observation and uses private staging before Trash. A last-moment source replacement can be captured and then refused, requiring review; the capture does not guarantee that no unrelated file was moved. The final Foundation pathname call has a remaining race window, and private permissions do not isolate another process with the same UID. [REMOVAL.md](REMOVAL.md) documents these boundaries and uncertain journal outcomes.
 
-Phase 2 implements metadata gates, size accounting, traversal depth, and cancellation tests. Phase 3 adds manifest ordering and synthetic transport round trips; actual Foundation Trash/undo integration remains outstanding. No scanner production path opens regular-file content. Mount-boundary logic still needs coverage on separately mounted test volumes before broader roots are enabled.
+Phase 2 implements metadata gates, size accounting, traversal depth, and cancellation tests. Phase 3 verifies manifest ordering and synthetic transport round trips; its guarded integration also passed the ordinary-file actual Foundation Trash/public-undo round trip. No scanner production path opens regular-file content. Mount-boundary logic still needs coverage on separately mounted test volumes before broader roots are enabled.
 
 macOS CI executes with Xcode 16.4 on macOS 15. Its deployment target is macOS 14; that is not a substitute for runtime testing on macOS 14. Command Line Tools can compile the core, but running XCTest requires a toolchain containing that framework.
 
