@@ -34,7 +34,9 @@ if [[ ! "$fixture_uuid" =~ ^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9
   printf '%s\n' 'Could not generate a fresh fixture identifier.' >&2
   exit 1
 fi
-fixture_root="/private/tmp/RACKET-LiveTrash-$fixture_uuid"
+# Use a canonical home path: Foundation standardizes /private/tmp to /tmp,
+# whose symlink spelling deliberately fails the production no-follow policy.
+fixture_root="/Users/RACKET-LiveTrash-$fixture_uuid"
 fixture_home="$fixture_root/Home"
 fixture_token="$(printf '%s' "$fixture_uuid" | /usr/bin/tr -d '-' | /usr/bin/tr 'A-F' 'a-f')"
 fixture_account="_racket_trash_${fixture_token:0:16}"
@@ -43,7 +45,8 @@ fixture_binary="$fixture_root/LiveTrash"
 
 # mkdir refuses an existing fixture path. The executable includes Core
 # directly and is never shipped.
-/bin/mkdir -m 700 "$fixture_root"
+/usr/bin/sudo -n /bin/mkdir -m 700 "$fixture_root"
+/usr/bin/sudo -n /usr/sbin/chown "$(/usr/bin/id -u):$(/usr/bin/id -g)" "$fixture_root"
 printf 'Preserving live Trash fixture: %s\n' "$fixture_root"
 /usr/bin/xcrun swiftc -parse-as-library -swift-version 6 -strict-concurrency=complete \
   -D SWIFT_PACKAGE -module-name RacketLiveTrashFixture \

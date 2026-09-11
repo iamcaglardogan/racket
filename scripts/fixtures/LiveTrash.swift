@@ -138,7 +138,7 @@ private struct FixtureContext: Sendable {
         }
         home = arguments[1]
         root = URL(fileURLWithPath: home).deletingLastPathComponent().path
-        let prefix = "/private/tmp/RACKET-LiveTrash-"
+        let prefix = "/Users/RACKET-LiveTrash-"
         guard root.hasPrefix(prefix), home == root + "/Home",
               let uuid = UUID(uuidString: String(root.dropFirst(prefix.count))),
               root == prefix + uuid.uuidString else {
