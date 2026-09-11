@@ -165,10 +165,14 @@ private struct FixtureContext: Sendable {
         let received = groups.withUnsafeMutableBufferPointer { getgroups(groupCount, $0.baseAddress) }
         try require(received == groupCount && !groups.contains(0) && !groups.contains(20) && !groups.contains(80),
                     "The fixture inherited root, staff or admin group membership")
-        try require(NSUserName() == account && NSHomeDirectory() == home &&
-                    FileManager.default.homeDirectoryForCurrentUser.path == home &&
-                    FileManager.default.homeDirectory(forUser: account)?.path == home,
-                    "Foundation does not resolve the synthetic current user's home")
+        let foundationName = NSUserName()
+        let foundationHome = NSHomeDirectory()
+        let currentHome = FileManager.default.homeDirectoryForCurrentUser.path
+        let namedHome = FileManager.default.homeDirectory(forUser: account)?.path
+        try require(foundationName == account, "Unexpected Foundation user: \(foundationName)")
+        try require(foundationHome == home, "Unexpected NSHomeDirectory: \(foundationHome)")
+        try require(currentHome == home, "Unexpected current-user home: \(currentHome)")
+        try require(namedHome == home, "Unexpected named-user home: \(namedHome ?? "nil")")
         try verifyPrivateDirectory(root)
         try verifyPrivateDirectory(home)
     }
