@@ -1,6 +1,6 @@
 # Removal and recovery
 
-Phase 3 adds a headless `RemovalEngine`, `ManifestStore`, and `UndoService`. [PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), at `780a4ad`, passed all 226 XCTest cases in both runners, source guardrails, the universal build, and entitlements validation. The same run passed the guarded ordinary-file Foundation Trash/public-undo integration. The owner’s checkpoint review in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3) remains pending; Phase 4 has not begun. No cleanup rule or product interface is enabled. XCTest and local fixtures use synthetic homes and an injected fake Trash transport; they do not touch a developer’s home or real Trash.
+Phase 3's headless `RemovalEngine`, `ManifestStore`, and `UndoService` are accepted and merged through [PR 3](https://github.com/iamcaglardogan/racket/pull/3) at `aff383d`. Phase 4 adds producer guards in [draft PR 4](https://github.com/iamcaglardogan/racket/pull/4), whose required checks passed at `8f94aa5`; [TESTING.md](TESTING.md) records both checkpoints and the guarded ordinary-file Foundation Trash/public-undo evidence. No cleanup rule is enabled, and no live vendor project resolver or product interface is implemented. XCTest and local fixtures use synthetic homes and an injected fake Trash transport; they do not touch a developer’s home or real Trash.
 
 The engine records intent before changing a file's location, verifies that the file still matches the reviewed scan, and retains evidence when an operation fails. Undo restores only a verified recorded item to its original path. These controls do not establish an atomic Foundation Trash operation or guarantee recovery after every failure.
 
@@ -11,7 +11,8 @@ The engine records intent before changing a file's location, verifies that the f
 For each selected file, the engine independently verifies:
 
 - Its current path lies below the compiled Caches or Logs root, satisfies the protected-path policy, and is outside the reserved `.racket-staging` name.
-- The current rule is enabled and verified, still matches the path and depth, and agrees with the finding's module, risk, reason, and regeneration note.
+- The current rule is enabled and verified, still matches the path and depth, and agrees with the finding's module, risk, reason, regeneration note, and retained required producer set. A later rule change cannot silently strip the closed-application guard.
+- If `requiresClosedApplications` is true, a fresh activity observation reports no listed producer observed running. Running or unknown activity cannot proceed.
 - The age condition still holds, and any explicit backup exclusion is honored.
 - No-follow metadata agrees with the scan fingerprint and allocated size. Dataless gates precede explicit stat and size access.
 - The candidate is an ordinary single-link file owned by the current non-root user, with a supported local location. Directories, special files, symlinks, root-owned files, and multi-link files cannot enter the Trash step. Group/world-writable files and ancestors, and access-granting ACLs, are refused. The root-owned sticky `/private/tmp` ancestor is recognized for synthetic fixtures; it does not grant candidate authority outside the compiled safe roots.
@@ -23,15 +24,17 @@ The observation is not a content hash or a snapshot. A file with an uncertain or
 Both services are actors. Their filesystem operation bodies remain synchronous inside the per-thread no-materialization policy; there is no `await` inside that scope. Cancellation is checked between items, so an item already in progress completes its available outcome record before the next item is considered. A separate nonblocking operation lock prevents concurrent cooperating removal and recovery operations across store instances.
 
 1. Create and synchronize the session header, including the app version, rule-set version, timestamp, and session ID.
-2. Validate the selected file and retain its metadata descriptor and ancestor identities.
+2. Validate the selected file and required producer observation, then retain its metadata descriptor and ancestor identities.
 3. Append and synchronize `prepared`, including the original path, planned staging path, rule ID, allocated size, and recorded identity. No transaction directory or file move precedes this record.
-4. Create or verify `<safe-root>/.racket-staging/<session-ID>/` with private permissions. Revalidate the original scan observation and path receipt.
-5. Move the exact source entry to its item-ID staging name using descriptor-relative `renameatx_np` with `RENAME_EXCL | RENAME_NOFOLLOW_ANY`. No destination is overwritten and there is no cross-volume copy fallback.
+4. Repeat the required producer observation before creating or verifying `<safe-root>/.racket-staging/<session-ID>/` with private permissions. Revalidate the original scan observation and path receipt.
+5. Repeat the required producer observation immediately before moving the exact source entry to its item-ID staging name using descriptor-relative `renameatx_np` with `RENAME_EXCL | RENAME_NOFOLLOW_ANY`. No destination is overwritten and there is no cross-volume copy fallback.
 6. Verify the captured item against the retained descriptor and recorded identity, then append and synchronize `staged`.
-7. Recheck staging and ancestor identities immediately before the sole production `FileManager.trashItem(at:resultingItemURL:)` call in `RemovalEngine.swift`.
+7. Recheck staging and ancestor identities and repeat the required producer observation immediately before the sole production `FileManager.trashItem(at:resultingItemURL:)` call in `RemovalEngine.swift`.
 8. Validate the actual returned path, its file identity, and Foundation's Trash-directory relationship. Append and synchronize `trashed` before returning a successful outcome.
 
 The reservation stays inside the existing compiled root; it grants no broader removal authority. It is excluded from rule locations and scan findings, so a later scan cannot offer transaction contents as new cleanup work. Empty reservations and failed-operation evidence are preserved.
+
+Producer observations use current-user process metadata and incomplete executable/bundle-name heuristics. They cannot lock an application or prevent launch/exec immediately afterward. Unknown producers remain refused; a failed check after capture follows the existing verified rollback/recovery path. [Creative grouping](CREATIVE-CACHE.md) preserves findings and supplied provenance but supplies no additional removal permission or automatic project discovery.
 
 Apple's Trash API accepts a pathname and provides the resulting location through its output parameter. RACKET records that returned path rather than constructing a name in Trash. Neither its public Core API nor the integration fixture can pin the destination chosen by Foundation; discovery and returned-path checks do not make the call atomic. [Apple Foundation Trash API](https://developer.apple.com/documentation/foundation/filemanager/trashitem(at:resultingitemurl:))
 
@@ -85,4 +88,4 @@ Private staging narrows the exposed original-name window but does not close the 
 
 The [test plan](TESTING.md) distinguishes the passed XCTest suite’s real Darwin moves and journal files inside synthetic `/private/tmp` homes from its injected fake Trash transport. A separate guarded CI executable passed an ordinary-file round trip through actual Foundation Trash and public `UndoService`, under a new synthetic OS account in a disposable GitHub-hosted macOS VM. It verified the original inode, identical bytes, and five authenticated journal actions through the public current-user APIs. Its UUID and account/UID/GID preflight assumes no concurrent account creation and is not an atomic reservation. Never run the account script locally. No developer’s home, application cache, project, or cloud storage is used as test data. Finder Put Back, genuine cloud placeholders, separate-volume behavior, power-loss durability, and macOS 14 runtime compatibility remain unverified.
 
-This checkpoint does not add directory removal, multi-link cleanup, elevated privileges, a helper, new rules, snapshots, standing approvals, or product views. Those capabilities cannot be inferred from this headless boundary.
+The removal boundary supports no directory removal, multi-link cleanup, elevated privileges, helper, snapshots, standing approvals, or product views. Phase 4's single disabled, unverified candidate does not enable cleanup or broaden the compiled roots. Those capabilities cannot be inferred from this headless boundary.
