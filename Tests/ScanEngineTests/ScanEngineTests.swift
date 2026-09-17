@@ -50,7 +50,7 @@ final class ScanEngineTests: XCTestCase, @unchecked Sendable {
         DirectoryWalk(files: files, issues: issues, visitedEntryCount: visited)
     }
 
-    func testEmptyBundledRulesProduceAnEmptyReportWithoutWalking() async throws {
+    func testDisabledBundledCandidatesProduceAnEmptyReportWithoutWalking() async throws {
         let set = try RuleSet.loadBundled { _ in }
         let probe = EngineProbe()
         let scanner = try engine { _, _, _ in probe.record(); return Self.walk() }

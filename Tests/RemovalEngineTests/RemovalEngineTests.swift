@@ -336,7 +336,8 @@ final class RemovalEngineTests: XCTestCase, @unchecked Sendable {
     }
 }
 
-private struct RemovalFixture: Sendable {
+struct RemovalFixture: Sendable {
+    let requiresClosedApplications: Bool
     let home: String
     let policy: SafeRoots
     let manifest: ManifestStore
@@ -355,12 +356,14 @@ private struct RemovalFixture: Sendable {
         "title":"Fixture cache","producers":["io.racket.fixture"],"paths":["~/Library/Caches/Vendor"],
         "match":{"kind":"directoryContents","maxDepth":1},"conditions":[],"risk":"judgement",
         "reason":"Synthetic files only.","regenerationCost":"Created by the test.",
-        "citation":"https://example.invalid/fixture","enabled":true,"verified":true}]}
+        "citation":"https://example.invalid/fixture","enabled":true,"verified":true,
+        "requiresClosedApplications":\(requiresClosedApplications)}]}
         """
     }
     var rules: RuleSet { get throws { try RuleSet.decode(Data(ruleJSON.utf8), validatePath: policy.validateRulePath) } }
 
-    init(extraFile: Bool = false) throws {
+    init(extraFile: Bool = false, requiresClosedApplications: Bool = false) throws {
+        self.requiresClosedApplications = requiresClosedApplications
         home = "/private/tmp/RACKET-RemovalFixture-" + UUID().uuidString
         policy = try SafeRoots(homeDirectory: home)
         try FileManager.default.createDirectory(atPath: home, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -384,9 +387,9 @@ private struct RemovalFixture: Sendable {
     func engine(_ custom: RemovalOperations? = nil) -> RemovalEngine {
         RemovalEngine(policy: policy, manifest: manifest, operations: custom ?? operations)
     }
-    func findings() async throws -> [Finding] {
+    func findings(appActivity: AppActivity = AppActivity()) async throws -> [Finding] {
         let walker = DirectoryWalker(policy: policy)
-        let engine = ScanEngine(policy: policy, concurrencyLimit: 1) { path, depth, skip in
+        let engine = ScanEngine(policy: policy, concurrencyLimit: 1, appActivity: appActivity) { path, depth, skip in
             try walker.walk(path: path, maxDepth: depth, skipExcludedFromBackup: skip)
         }
         return try await engine.scan(ruleSet: rules).findings

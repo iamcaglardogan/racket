@@ -64,15 +64,20 @@ final class RuleSetTests: XCTestCase {
         XCTAssertEqual(result.enabledRules, result.rules)
     }
 
-    func testShippedRuleDocumentIsVersionedAndHasNoEnabledOrUnverifiedCacheClaims() throws {
+    func testShippedCreativeCandidateRemainsDisabledUntilVerified() throws {
         let policy = try SafeRoots(homeDirectory: Self.fixtureHome)
         let result = try RuleSet.loadBundled { path in
             try policy.validateRulePath(path)
         }
         XCTAssertEqual(result.schemaVersion, RuleSet.supportedSchemaVersion)
-        XCTAssertEqual(result.version, "1.0.0")
-        XCTAssertTrue(result.rules.isEmpty)
+        XCTAssertEqual(result.version, "1.1.0")
+        XCTAssertEqual(result.rules.map(\.id), ["adobe.camera-raw-cache-2"])
+        XCTAssertTrue(result.rules.allSatisfy { !$0.verified && !$0.enabled && $0.requiresClosedApplications })
+        XCTAssertEqual(result.rules.first?.paths, ["~/Library/Caches/Adobe Camera Raw 2"])
         XCTAssertTrue(result.enabledRules.isEmpty)
+        XCTAssertEqual(CreativeCacheCatalog.ruleMappings.map(\.ruleID), result.rules.map(\.id))
+        XCTAssertEqual(Set(CreativeCacheCatalog.ruleMappings[0].producerIDs), Set(result.rules[0].producers))
+        XCTAssertEqual(CreativeCacheCatalog.ruleMappings[0].scope, .applicationWide)
     }
 
     func testMissingEnableAndVerificationFlagsDefaultToDisabled() throws {

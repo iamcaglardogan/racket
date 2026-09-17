@@ -56,6 +56,7 @@ public actor RemovalEngine {
     private let fileSystem: RemovalFileSystem
     private let manifest: ManifestStore
     private let operations: RemovalOperations
+    private let appActivity: AppActivity
 
     public init(manifest: ManifestStore) throws {
         let policy = try SafeRoots.currentUser()
@@ -63,11 +64,12 @@ public actor RemovalEngine {
     }
 
     init(policy: SafeRoots, manifest: ManifestStore, operations: RemovalOperations = .live,
-         calculator: SizeCalculator = SizeCalculator()) {
+         calculator: SizeCalculator = SizeCalculator(), appActivity: AppActivity = AppActivity()) {
         self.policy = policy
         self.fileSystem = RemovalFileSystem(policy: policy, calculator: calculator)
         self.manifest = manifest
         self.operations = operations
+        self.appActivity = appActivity
     }
 
     public func moveToTrash(reviewedFindings: [Finding], ruleSet: RuleSet, appVersion: String,
@@ -108,6 +110,7 @@ public actor RemovalEngine {
         var source: RemovalLocation?
         do {
             let rule = try matchingRule(finding, rules: rules, now: now)
+            try requireProducerObservation(rule)
             let opened = try fileSystem.open(finding.resolvedPath, includeSize: true, skipBackup: rule.skipExcludedFromBackup)
             try fileSystem.requireOrdinaryOwnedFile(opened, expected: item.identity)
             guard opened.metadata.fingerprint == finding.observation, opened.metadata.allocatedSize == finding.allocatedSize else {
@@ -119,6 +122,7 @@ public actor RemovalEngine {
             stagePath = try fileSystem.stagingPath(for: item, sessionID: sessionID)
             // This record is durable before even creating a transaction directory.
             try record(.prepared, item: item, sessionID: sessionID, stagingPath: stagePath)
+            try requireProducerObservation(rule)
             let staging = try fileSystem.makeStagingParent(for: item, sessionID: sessionID)
             try operations.beforeCapture(item.originalPath)
             _ = try guarder.revalidate(receipt)
@@ -129,6 +133,7 @@ public actor RemovalEngine {
             try fileSystem.verify(opened.anchors)
             try fileSystem.move(last, into: staging, name: item.id.uuidString) {
                 try operations.beforeCaptureRename(item.originalPath)
+                try requireProducerObservation(rule)
             }
             captured = true
             try operations.afterCapture(stagePath!)
@@ -141,6 +146,7 @@ public actor RemovalEngine {
             let ready = try fileSystem.verifiedStage(stagePath!, item: item, sessionID: sessionID)
             guard ready.metadata.fingerprint == staged.metadata.fingerprint else { throw RemovalSafetyError.changed }
             try fileSystem.verify(opened.anchors)
+            try requireProducerObservation(rule)
             trashStarted = true
             trashPath = try operations.trash(stagePath!)
             let trashed = try fileSystem.open(trashPath!)
@@ -184,7 +190,10 @@ public actor RemovalEngine {
         _ = try policy.validateCandidate(finding.resolvedPath)
         guard let rule = rules.rules.first(where: { $0.id == finding.ruleID }), rule.enabled && rule.verified,
               rule.module == finding.module, rule.risk == finding.risk, rule.reason == finding.reason,
-              rule.regenerationCost == finding.regenerationCost else { throw RemovalSafetyError.invalidSelection }
+              rule.regenerationCost == finding.regenerationCost,
+              finding.requiredClosedProducers == (rule.requiresClosedApplications ? rule.producers.sorted() : []) else {
+            throw RemovalSafetyError.invalidSelection
+        }
         var matches = false
         for declared in rule.paths {
             let root = try policy.validateScanRoot(declared)
@@ -197,6 +206,15 @@ public actor RemovalEngine {
         if let days = rule.conditions.first?.olderThanDays,
            finding.modifiedAt >= now.addingTimeInterval(-Double(days) * 86_400) { throw RemovalSafetyError.invalidSelection }
         return rule
+    }
+
+    private func requireProducerObservation(_ rule: Rule) throws {
+        guard rule.requiresClosedApplications else { return }
+        switch appActivity.check(producers: rule.producers) {
+        case .notObservedRunning: return
+        case .running: throw RemovalSafetyError.producerRunning
+        case .unknown: throw RemovalSafetyError.producerActivityUnknown
+        }
     }
 
     private func record(_ action: ManifestAction, item: ManifestItem, sessionID: UUID,
@@ -216,7 +234,8 @@ public actor RemovalEngine {
     private func refusalOutcome(_ error: any Error) -> RemovalOutcome {
         switch error {
         case ScanMetadataError.dataless, ScanMetadataError.excludedFromBackup, RemovalSafetyError.ownership,
-             RemovalSafetyError.multipleLinks, RemovalSafetyError.missing, PathGuardError.missing: .skipped
+             RemovalSafetyError.multipleLinks, RemovalSafetyError.missing, PathGuardError.missing,
+             RemovalSafetyError.producerRunning: .skipped
         default: .refused
         }
     }

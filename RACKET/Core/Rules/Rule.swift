@@ -71,6 +71,9 @@ public struct Rule: Codable, Equatable, Sendable {
     public let verified: Bool
     public let enabled: Bool
     public let skipExcludedFromBackup: Bool
+    /// A fresh producer observation is required at scan and removal boundaries.
+    /// This is a refusal guard, not an application lock or proof of inactivity.
+    public let requiresClosedApplications: Bool
 
     /// Eligibility only; this is not user approval or a removal capability.
     /// Judgement data is ineligible even when its rule is verified and enabled.
@@ -80,7 +83,7 @@ public struct Rule: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey, CaseIterable {
         case id, module, title, producers, paths, match, conditions, risk
-        case reason, regenerationCost, citation, verified, enabled, skipExcludedFromBackup
+        case reason, regenerationCost, citation, verified, enabled, skipExcludedFromBackup, requiresClosedApplications
     }
 
     public init(from decoder: any Decoder) throws {
@@ -103,6 +106,8 @@ public struct Rule: Codable, Equatable, Sendable {
         enabled = values.contains(.enabled) ? try values.decode(Bool.self, forKey: .enabled) : false
         skipExcludedFromBackup = values.contains(.skipExcludedFromBackup)
             ? try values.decode(Bool.self, forKey: .skipExcludedFromBackup) : false
+        requiresClosedApplications = values.contains(.requiresClosedApplications)
+            ? try values.decode(Bool.self, forKey: .requiresClosedApplications) : false
 
         try requireRuleText(id, field: "id", maximumBytes: 256)
         let identifierCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
