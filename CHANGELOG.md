@@ -46,6 +46,7 @@ There are no releases yet.
 - Scanner findings now retain their internal metadata fingerprint for removal-time comparison; `.racket-staging` is reserved from rule paths and findings.
 - Recorded owner acceptance of Phase 3 and the September 11, 2026 merge of [PR 3](https://github.com/iamcaglardogan/racket/pull/3) at `aff383d`; Phase 4 is authorized and in progress.
 - Findings retain the producer set required to be closed, and grouping/removal reject a later mismatch with the rule.
+- Recorded native Resolve and After Effects settings evidence, replacing assumed default locations with observed mixed parent locations while keeping cleanup disabled and compiled roots unchanged.
 
 ### Fixed
 
