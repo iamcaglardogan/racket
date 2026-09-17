@@ -137,6 +137,42 @@ final class CreativeCacheGroupingTests: XCTestCase {
         XCTAssertNotEqual(groups[0].id, groups[1].id)
     }
 
+    func testCanonicallyEquivalentOpaqueProjectIDsStayDistinctAcrossInputOrder() throws {
+        let rules = try ruleSet([rule()])
+        let first = finding("/synthetic/a", rule: rules.rules[0], bytes: 4_096)
+        let second = finding("/synthetic/b", rule: rules.rules[0], bytes: 8_192)
+        let composedID = "caf\u{00E9}"
+        let decomposedID = "cafe\u{0301}"
+        XCTAssertEqual(composedID, decomposedID)
+        XCTAssertNotEqual(Data(composedID.utf8), Data(decomposedID.utf8))
+        XCTAssertNotEqual(CreativeCacheProject(id: composedID, title: "Film"),
+                          CreativeCacheProject(id: decomposedID, title: "Film"))
+        let associations = [resolution(first, id: composedID), resolution(second, id: decomposedID)]
+        let groups = try CreativeCacheGrouping.group(
+            report: report([first, second]), ruleSet: rules, ruleMappings: [mapping(rules.rules[0])],
+            projectResolutions: associations
+        )
+        let reversed = try CreativeCacheGrouping.group(
+            report: report([second, first]), ruleSet: rules, ruleMappings: [mapping(rules.rules[0])],
+            projectResolutions: associations.reversed()
+        )
+        XCTAssertEqual(groups, reversed)
+        XCTAssertEqual(groups.count, 2)
+        XCTAssertEqual(Set(groups.map(\.id)).count, 2)
+        let expectedIDs = [Data(decomposedID.utf8), Data(composedID.utf8)]
+        XCTAssertEqual(groups.compactMap { group -> Data? in
+            guard case .project(let id) = group.id.scope else { return nil }
+            return Data(id.utf8)
+        }, expectedIDs)
+        XCTAssertEqual(groups.compactMap { group -> Data? in
+            guard case .project(let project) = group.attribution else { return nil }
+            return Data(project.id.utf8)
+        }, expectedIDs)
+        XCTAssertEqual(groups.map(\.findings), [[second], [first]])
+        XCTAssertEqual(groups.map(\.reportedAllocatedBytes), [8_192, 4_096])
+        XCTAssertEqual(groups.map(\.projectResolutions), [[associations[1]], [associations[0]]])
+    }
+
     func testCanonicallyEquivalentUnicodePathsRemainByteExactAndDistinct() throws {
         let rules = try ruleSet([rule()])
         let composed = finding("/synthetic/Caf\u{00E9}/cache.bin", rule: rules.rules[0], bytes: 4_096)

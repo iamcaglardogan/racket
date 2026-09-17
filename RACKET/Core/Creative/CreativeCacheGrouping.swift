@@ -22,13 +22,19 @@ public struct CreativeCacheRuleMapping: Equatable, Sendable {
 }
 
 public struct CreativeCacheProject: Equatable, Sendable {
-    /// Stable within the complete producer set. A title is never an identifier.
+    /// An opaque vendor identifier, stable within the complete producer set.
+    /// Preserve exact UTF-8 bytes; a title is never an identifier.
     public let id: String
     public let title: String
 
     public init(id: String, title: String) {
         self.id = id
         self.title = title
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        // Titles retain ordinary String equality; opaque IDs do not normalize.
+        lhs.id.utf8.elementsEqual(rhs.id.utf8) && lhs.title == rhs.title
     }
 }
 
@@ -71,6 +77,28 @@ public struct CreativeCacheGroup: Equatable, Sendable {
             case applicationWide
             case unknownProject
             case project(String)
+
+            public static func == (lhs: Self, rhs: Self) -> Bool {
+                switch (lhs, rhs) {
+                case (.applicationWide, .applicationWide), (.unknownProject, .unknownProject): true
+                case (.project(let left), .project(let right)): left.utf8.elementsEqual(right.utf8)
+                default: false
+                }
+            }
+
+            public func hash(into hasher: inout Hasher) {
+                // Canonically equivalent opaque vendor IDs can identify distinct
+                // projects. Match equality's exact bytes and separate scope cases.
+                switch self {
+                case .applicationWide:
+                    hasher.combine(0)
+                case .unknownProject:
+                    hasher.combine(1)
+                case .project(let id):
+                    hasher.combine(2)
+                    hasher.combine(Data(id.utf8))
+                }
+            }
         }
 
         public let producerIDs: [String]
