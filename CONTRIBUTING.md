@@ -1,6 +1,6 @@
 # Contributing to RACKET
 
-RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). The owner accepted Phases 1 and 2, merged through pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2), and authorized Phase 3. Headless removal, manifests, and undo passed 226 XCTest cases in both runners and a guarded ordinary-file Foundation Trash/public-undo integration in [CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad`. The Phase 3 owner checkpoint in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3) remains pending. Phase 4 has not begun. Verified creative rules and product interface work remain later phases.
+RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). Phases 1–3 are accepted and merged. Phase 4 is in progress in [draft PR 4](https://github.com/iamcaglardogan/racket/pull/4), with required checks passing at `8f94aa5`. Grouping and producer guards are implemented; vendor verification and the owner checkpoint remain open. No cleanup rule is enabled, no live vendor project resolver is implemented, and product interface work remains a later phase.
 
 ## Build and verify
 
@@ -10,19 +10,22 @@ Edit `project.yml`, not the generated Xcode project. Keep `Core/` independent of
 
 ## Adding or changing a cleanup rule
 
-The rule model and loader are implemented in Phase 1; creative rule verification and grouping follow in Phase 4. The bundled `RACKET/Core/Rules/Rules/core-v1.json` intentionally contains no rules. A rule proposal must include:
+The rule model and loader are implemented; Phase 4 adds pure grouping and continues creative rule verification. Bundled `RACKET/Core/Rules/Rules/core-v1.json` version `1.1.0` contains one disabled, unverified Camera Raw candidate. A rule proposal must include:
 
 - A unique identifier, producer bundle identifiers, bounded paths and walk depth, and applicable conditions.
 - A plain-language `reason` and `regenerationCost`, rendered directly in the future findings interface.
 - A source citation from the application's vendor or another primary source supporting the path and its purpose.
 - A risk tier that reflects the cost of recovery. Deliberate downloads and data that may be the only local copy belong in `judgement`, which is never preselected.
 - Verification notes naming the application version, macOS version, path, expected contents, and whether the application must be closed. Merely finding a directory or having the app installed does not establish that its contents are safe to remove.
+- The complete producer set for a shared cache, including relevant helpers, plus `requiresClosedApplications: true` when cleanup requires a fresh closed-application observation. Unsupported producer identities remain unknown and cannot satisfy that guard.
 
 If a path or its behavior has not been verified, include `"verified": false` and `"enabled": false`. Missing flags default to false; explicit nulls are rejected, and an enabled unverified rule fails validation. Do not infer ownership or safe deletion from a cache-like name. When an API or path is uncertain, document the uncertainty before relying on it.
 
 Rules cannot grant themselves removal authority. Every declaration, even a disabled rule, must pass the compiled safe-root allow-list and independent protected-root checks. Only `~/Library/Caches` and `~/Library/Logs` are enumerated in this phase. Rule data cannot specify roots, change home-directory resolution, or relax protected paths. Any proposed change to roots requires its own safety justification and adversarial tests. A directory-contents declaration may name a root, but the root itself can never be a removal candidate.
 
 Schema 1 requires a three-part numeric document version. It supports only `directoryContents` with `maxDepth` from 1 through 32, and at most one `olderThanDays` condition from 1 through 36,500. Phase 2 adds the optional Boolean `skipExcludedFromBackup`, which defaults to false; explicit nulls and other types are rejected. Only explicit true enables this filter, and the scanner reports excluded items. Unknown fields and matching modes, duplicate JSON keys including escaped equivalents, duplicate IDs, missing reasons or regeneration notes, and invalid citations fail validation. Citations must be HTTPS URLs without embedded credentials. The loader caps input at 1 MiB, 1,000 rules, and 64 paths per rule; see the model for field-length limits.
+
+Phase 4 adds optional Boolean `requiresClosedApplications`, also defaulting to false and rejecting null or other types. Guarded findings retain the required producer set, and grouping/removal reject a mismatch with the current rule. Preserve checks before and after each scan job and before removal mutations. Process names are incomplete identity heuristics; tests must cover unknown states and launch/exec changes without claiming an application lock. Owner confirmation of default locations is context, not path or content verification.
 
 Use the fixed bundle loader in the application and the explicit Data loader for synthetic tests. Supply `SafeRoots.validateRulePath` as the path validator. Validation checks declarations; the scanner independently checks rule paths and actual children, and the removal boundary rechecks its own scope and the current rule. Add tests for accepted and refused examples, including disabled unsafe rules. There is no filesystem path or network rule-loading API. The reserved `.racket-staging` name cannot become a rule location or scan finding.
 
@@ -31,6 +34,8 @@ Use the fixed bundle loader in the application and the explicit Data loader for 
 Read [SCANNING.md](docs/SCANNING.md) before changing metadata access, traversal, scheduling, or size totals. Keep the entire no-materialization policy scope synchronous, including ancestor lookup, and preserve its restoration on error. No size query or regular-file content read may precede dataless gates. Test injected metadata call order independently of ordinary-file integration; do not describe either as proof against real provider hydration.
 
 Use a fixed reference date and synthetic rule data for exact findings tests. Assert reported skips and refusals as well as findings, depth and entry limits, cancellation, deterministic overlapping-rule behavior, hard-link deduplication, and overflow refusal. Allocated-size expectations must come from allocated metadata or controlled injected values, not logical file length. Do not add directory findings or enable cache rules to make the test harness more convenient.
+
+For creative grouping, retain exact findings, byte-exact paths, complete producer sets, and supplied association provenance. Do not infer a project from a directory name or present file modification time as last-opened time. A live vendor resolver needs separate verified formats and fixtures; the current grouping API is not one. [CREATIVE-CACHE.md](docs/CREATIVE-CACHE.md) records deferred paths and producer gaps.
 
 ## Test data and file safety
 

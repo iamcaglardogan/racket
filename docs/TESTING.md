@@ -35,7 +35,7 @@ The fixtures are read from source using the test's compile-time file location, n
 
 ## Phase 3 checks
 
-[PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), at `780a4ad`, passed all 226 XCTest cases in each of SwiftPM and Xcode, source guardrails, the universal `arm64`/`x86_64` app build, and entitlements validation. A separate local narrow harness passed 76 cases; that is not XCTest execution or a substitute for either CI runner. The following boundaries are covered by the synthetic suite. The owner’s Phase 3 checkpoint review remains pending in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3); Phase 4 has not begun.
+[PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), at `780a4ad`, passed the historical 226-case Phase 3 suite in each of SwiftPM and Xcode, source guardrails, the universal `arm64`/`x86_64` app build, and entitlements validation. A separate local narrow harness passed 76 cases; that is not XCTest execution or a substitute for either CI runner. The owner accepted Phase 3, and [PR 3](https://github.com/iamcaglardogan/racket/pull/3) merged on September 11, 2026, at `aff383d`. The following boundaries were added by that checkpoint.
 
 | Boundary | Added assertions |
 | --- | --- |
@@ -53,9 +53,25 @@ The [removal](../Tests/RemovalEngineTests/RemovalEngineTests.swift), [manifest](
 
 These tests do **not** exercise `FileManager.trashItem`, Foundation's recognition of the actual Trash directory, Finder's Put Back behavior, real cloud providers, separately mounted volumes, or a power-loss crash. Synchronized writes and injected failures do not establish durability under every storage failure. A successful fake-transport round trip is not evidence of a real Foundation Trash round trip.
 
+## Phase 4 checks
+
+[PR CI run 35216679049](https://github.com/iamcaglardogan/racket/actions/runs/35216679049), at `8f94aa5`, passed **281 XCTest cases with zero failures in each of SwiftPM and Xcode**, the application build, both source-policy guardrail tests, and entitlements validation. The same run passed the guarded live Foundation Trash/public-undo round trip with the original inode, identical bytes, and five authenticated journal actions. [Draft PR 4](https://github.com/iamcaglardogan/racket/pull/4) remains in progress: successful CI does not complete vendor verification or the owner checkpoint.
+
+| Boundary | Added assertions |
+| --- | --- |
+| Producer observation | Supported executable and bundle-family matching, unknown/partial producer sets, current-user process sets, malformed or truncated results, PID/exec/credential churn, zombie handling, and no-materialization restoration |
+| Guarded scanning | Strict optional `requiresClosedApplications` decoding; running/unknown activity prevents a walk; activity changing during a walk discards its findings while retaining the visit count |
+| Guarded removal | Findings retain the required producer set; changed rules cannot strip it; fresh observations after review and before staging, capture, and Trash stop unsafe progress; a guarded fake-transport removal/undo round trip preserves the fixture |
+| Pure grouping | Complete producer sets, separate application-wide and unknown groups, explicit provenance, stable byte-exact opaque project identities, exact Unicode path bytes, retained observations, checked totals, file-mtime semantics, and malformed-input refusal |
+| Bundled candidate | Version `1.1.0` contains exactly one disabled, unverified Camera Raw candidate; its provisional producer list includes unsupported Bridge and cannot pass the activity guard |
+
+The [creative-cache tests](../Tests/CreativeCacheTests/) use in-memory process metadata and project associations, plus the existing synthetic removal fixtures. They neither inspect running vendor applications nor discover real projects. A local standalone harness passed 55 creative fixture methods, including the opaque-ID regression; that narrower check was not XCTest execution. Manual metadata observations, the owner's default-location confirmation, and native settings-screen inspection are recorded separately in [CREATIVE-CACHE.md](CREATIVE-CACHE.md). These establish configured parent locations only; no vendor cache was used as test data and no application cache-cleaning control was invoked.
+
+Executable names remain incomplete identity heuristics, and a process may launch or exec after any observation. No live vendor project resolver, enabled rule, additional safe root, or vendor-specific regeneration/recovery claim follows from these results.
+
 ## Guarded live integration
 
-`scripts/check-live-trash.sh` and `scripts/fixtures/LiveTrash.swift` add a separate integration executable outside XCTest and the app targets. **The ordinary-file live round trip passed [CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad`.** It verified actual Foundation Trash followed by public `UndoService`, the original inode and identical bytes, and five authenticated journal actions after reopening the persistent store.
+`scripts/check-live-trash.sh` and `scripts/fixtures/LiveTrash.swift` add a separate integration executable outside XCTest and the app targets. **The ordinary-file live round trip passed the [Phase 3 run](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad` and the [Phase 4 run](https://github.com/iamcaglardogan/racket/actions/runs/35216679049) at `8f94aa5`.** It verified actual Foundation Trash followed by public `UndoService`, the original inode and identical bytes, and five authenticated journal actions after reopening the persistent store. It uses a synthetic rule and does not verify a vendor cache or complete producer coverage.
 
 Never run the account-setup script locally or on a self-hosted runner, and never spoof its environment guards. It requires GitHub Actions, a GitHub-hosted macOS runner, Darwin, and a non-root setup process; the workflow selects a disposable `macos-15` VM. Setup creates a fresh 0700 `/Users/RACKET-LiveTrash-<UUID>` directory with `mkdir`, refusing an existing path, and temporarily assigns it to the runner for compilation with Core sources and the SwiftPM resource accessor. It checks account/group names and UID/GID availability, then creates a new account and group with `/Users/RACKET-LiveTrash-<UUID>/Home` as its home, no enabled password, no interactive login shell, and no membership added to existing groups. This live fixture uses `/Users` to keep Foundation’s home spelling canonical; XCTest and local fixtures remain under `/private/tmp`. Setup uses `sudo` and transfers the fixture directory, home, and executable to the new non-root account before running it. Account and files are preserved for the VM’s lifetime.
 

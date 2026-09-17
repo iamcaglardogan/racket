@@ -1,5 +1,37 @@
 {
   "schemaVersion": 1,
-  "version": "1.0.0",
-  "rules": []
+  "version": "1.1.0",
+  "rules": [
+    {
+      "id": "adobe.camera-raw-cache-2",
+      "module": "creative",
+      "title": "Camera Raw development cache",
+      "producers": [
+        "com.adobe.LightroomClassicCC7",
+        "com.adobe.Photoshop",
+        "com.adobe.bridge",
+        "com.adobe.AfterEffects.application",
+        "com.adobe.AfterEffectsRenderEngine"
+      ],
+      "paths": [
+        "~/Library/Caches/Adobe Camera Raw 2"
+      ],
+      "match": {
+        "kind": "directoryContents",
+        "maxDepth": 1
+      },
+      "conditions": [
+        {
+          "olderThanDays": 14
+        }
+      ],
+      "risk": "regenerable",
+      "reason": "Camera Raw stores reusable image-processing data here. This shared cache cannot be assigned to individual projects from its filenames.",
+      "regenerationCost": "Image processing may be slower while cached data is rebuilt from the original images.",
+      "citation": "https://helpx.adobe.com/camera-raw/desktop/get-started/overview-and-setup/introduction-camera-raw.html",
+      "requiresClosedApplications": true,
+      "verified": false,
+      "enabled": false
+    }
+  ]
 }

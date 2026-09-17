@@ -1,16 +1,18 @@
 # Read-only scanning
 
-Phase 2 adds a headless scanner. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 tests under SwiftPM and Xcode, source guardrails, and the universal app build; the owner accepted the checkpoint and [pull request 2](https://github.com/iamcaglardogan/racket/pull/2) is merged. The scanner does not move files or create recovery records. Phase 3 separately adds [removal and undo](REMOVAL.md); [CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad` passed its 226-case XCTest suite in both runners and the guarded ordinary-file Foundation Trash/public-undo integration. The owner’s checkpoint review remains pending in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3). Phase 4 has not begun. There is no product interface or creative cleanup rule; the bundled rule document remains empty.
+Phases 1–3 are accepted and merged. Phase 4 adds producer guards and pure creative grouping in [draft PR 4](https://github.com/iamcaglardogan/racket/pull/4); required checks passed at `8f94aa5`. [TESTING.md](TESTING.md) records the current and historical evidence. The scanner does not move files or create recovery records; [removal and undo](REMOVAL.md) remain separate. Bundled version `1.1.0` has one disabled, unverified Camera Raw candidate. No cleanup rule is enabled, and no live vendor project resolver or product interface is implemented.
 
 ## Scope and output
 
 `ScanEngine` accepts a validated `RuleSet`, uses only enabled and verified rules, and independently checks every declared path against its compiled `SafeRoots` policy before starting a walk. Test-injected rule validators cannot grant the engine broader access. The only compiled roots remain the current user's `Library/Caches` and `Library/Logs`.
 
-`DirectoryWalker` enumerates each rule's `directoryContents` scope. It validates every child against protected-path rules and emits ordinary regular files only. It does not emit directories, approve their unexamined contents, infer project ownership, or choose which files to remove. A finding carries its resolved path, allocated size, modification date, rule ID, module, risk, reason, and regeneration note. Phase 3 also retains the live walk's internal metadata fingerprint for later comparison. `Finding` has no public initializer. Synthetic findings constructed internally by tests lack that observation by default and cannot authorize removal without it. `judgement` findings are ineligible for preselection; eligibility for other risks is not user approval.
+`DirectoryWalker` enumerates each rule's `directoryContents` scope. It validates every child against protected-path rules and emits ordinary regular files only. It does not emit directories, approve their unexamined contents, infer project ownership, or choose which files to remove. A finding carries its resolved path, allocated size, modification date, rule ID, module, risk, reason, and regeneration note. It retains the live walk's internal metadata fingerprint and the complete producer set required to be closed for later comparison. `Finding` has no public initializer. Synthetic findings constructed internally by tests lack that observation by default and cannot authorize removal without it. `judgement` findings are ineligible for preselection; eligibility for other risks is not user approval.
 
 The `.racket-staging` name is reserved for removal transactions and rejected in rule declarations and candidate paths. Its contents cannot reappear as cleanup findings. Reserving this name does not add another safe root.
 
 `ScanReport` also carries the rule-set version, visited-entry count, and path-specific issues. Issues distinguish skips, refusals, and incomplete observations. Dataless items, age exclusions, explicit backup exclusions, and duplicates are visible skips. Unsafe paths are refusals. Missing metadata and traversal limits mark incomplete coverage. Consumers must not present a report with incomplete issues as a complete scan.
+
+For `requiresClosedApplications: true`, the engine observes every listed producer before and after each path job. Running activity produces a visible skip; unknown activity marks incomplete coverage. A failed post-walk observation discards that job's findings but retains its visit count. Unguarded rules do not read process state. Name matching and repeated observations do not prevent a later launch or exec race; unsupported producers, including Bridge, remain unknown. [CREATIVE-CACHE.md](CREATIVE-CACHE.md) describes these limits and the pure grouping layer, which accepts supplied project evidence without discovering projects or granting removal authority.
 
 ## Enumeration and path observations
 
@@ -50,6 +52,7 @@ Each module gets one task group. Modules run sequentially, while each group sche
 | Collected observations | At most 100,000 files plus issues across the report; exceeding this throws without a complete report |
 | `olderThanDays` | File modification time must be strictly before the supplied reference time minus that many 24-hour days |
 | `skipExcludedFromBackup` | Defaults to false; only explicit true enables this filter, and every exclusion is reported |
+| `requiresClosedApplications` | Defaults to false; explicit true requires successful producer observations before and after each path job |
 
 Overlapping paths and hard links are deduplicated by exact path bytes and device/inode identity. Module, rule ID, declared path, and file-path ordering determine which eligible explanation wins, independently of task completion order. The visited-entry count can still include repeated observations from overlapping walks.
 
