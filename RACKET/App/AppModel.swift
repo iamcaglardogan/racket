@@ -62,6 +62,7 @@ final class AppModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var notice: String?
     @Published var search = ""
+    @Published private(set) var searchFocusRequest: UInt64 = 0
     @Published var moduleFilter = "all"
     @Published var selected = Set<Data>()
     @Published var confirmCleanup = false
@@ -110,6 +111,13 @@ final class AppModel: ObservableObject {
         nextScanDate = defaults.object(forKey: "nextScanDate") as? Date
         showOnboarding = !defaults.bool(forKey: "onboardingCompleted") && !verificationMode
         launchAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
+    var canFocusSearch: Bool { page == .cleanup || page == .applications }
+
+    func requestSearchFocus() {
+        guard canFocusSearch else { return }
+        searchFocusRequest &+= 1
     }
 
     var rows: [FindingRow] {

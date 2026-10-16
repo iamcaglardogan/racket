@@ -210,7 +210,7 @@ struct ApplicationPolicy: Sendable {
 }
 
 struct ApplicationProcessActivity: Sendable {
-    var snapshot: @Sendable () throws -> [AppActivityProcess] = { try AppActivityProcessSource().snapshot() }
+    var snapshot: @Sendable () throws -> [AppActivityProcess] = { try AppActivityProcessSource().stableSnapshot() }
 
     func requireClosed(paths: [String]) throws {
         let processes: [AppActivityProcess]

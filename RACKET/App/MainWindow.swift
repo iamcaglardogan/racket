@@ -17,6 +17,7 @@ struct MainWindow: View {
                 .frame(width: viewport.size.width, height: viewport.size.height)
         }
         .tint(scheme == .dark ? Color(red: 0.808, green: 0.537, blue: 0.604) : RacketStyle.accent)
+        .onChange(of: model.searchFocusRequest) { _, _ in searchFocused = true }
         .sheet(isPresented: $model.showOnboarding) { OnboardingView().environmentObject(model) }
         .sheet(isPresented: $model.confirmCleanup) { CleanupConfirmation().environmentObject(model) }
         .sheet(isPresented: $model.confirmApplication) { ApplicationConfirmation().environmentObject(model) }
@@ -99,9 +100,6 @@ struct MainWindow: View {
                 ToolbarItem {
                     Button { model.scan() } label: { Label("Scan", systemImage: "arrow.clockwise") }
                         .disabled(model.busy || model.runtime == nil)
-                }
-                ToolbarItem {
-                    Button("Find") { searchFocused = true }.keyboardShortcut("f", modifiers: .command).hidden().frame(width: 0)
                 }
             }
         }

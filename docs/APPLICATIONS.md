@@ -25,7 +25,7 @@ The review refuses:
 - More than 50,000 total entries, depth greater than 64, malformed directory batches, changed directory observations, or allocation overflow.
 - Running executable paths inside the application bundle, or an unavailable/incomplete process observation.
 
-Process checks use the existing kernel process snapshot source and are repeated at review and mutation boundaries. They observe executables inside the selected original/staged bundle, including bundled helpers. They do not identify every external vendor service, prevent a subsequent launch/exec, or constitute an application lock.
+Process checks use the existing kernel process snapshot source and are repeated at review and mutation boundaries. Live observations retry up to three complete fresh strict snapshots after transient process churn; persistent incomplete observation still refuses the action. They observe executables inside the selected original/staged bundle, including bundled helpers. They do not identify every external vendor service, prevent a subsequent launch/exec, or constitute an application lock.
 
 The receipt contains a SHA-256 digest of ordered relative descendant paths, metadata identities, and allocated sizes. It includes descendant ctime and excludes only the bundle-root ctime, which changes when the bundle is renamed. It is a metadata tree digest, not a hash of file contents and not a substitute for signature validation. The entire tree is freshly inspected before capture, after capture, immediately before Trash, after Trash, and before/after undo.
 

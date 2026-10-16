@@ -17,7 +17,7 @@ public struct AppActivity: Sendable {
     private let identities: [ProducerExecutableIdentity]
 
     public init() {
-        self.init(snapshot: { try AppActivityProcessSource().snapshot() }, identities: .compiled)
+        self.init(snapshot: { try AppActivityProcessSource().stableSnapshot() }, identities: .compiled)
     }
 
     init(snapshot: @escaping @Sendable () throws -> [AppActivityProcess],
@@ -159,13 +159,13 @@ struct AppActivityProcessOperations: Sendable {
         listPIDs: { type, uid, capacity in
             if capacity == 0 {
                 let size = proc_listpids(type, uid, nil, 0)
-                guard size > 0 else { throw AppActivityObservationError.unavailable }
+                guard size > 0 else { throw AppActivityObservationError.syscall("proc_listpids.size", errno) }
                 return AppActivityPIDList(byteCount: Int(size), pids: [])
             }
             var pids = [pid_t](repeating: 0, count: capacity)
             let bytes = Int32(capacity * MemoryLayout<pid_t>.stride)
             let count = pids.withUnsafeMutableBytes { proc_listpids(type, uid, $0.baseAddress, bytes) }
-            guard count > 0 else { throw AppActivityObservationError.unavailable }
+            guard count > 0 else { throw AppActivityObservationError.syscall("proc_listpids.read", errno) }
             return AppActivityPIDList(byteCount: Int(count), pids: pids)
         },
         processInfo: { pid in
@@ -173,7 +173,7 @@ struct AppActivityProcessOperations: Sendable {
             let size = Int32(MemoryLayout<proc_bsdinfo>.size)
             // arg=1 allows an explicit zombie status; ESRCH remains unknown.
             guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 1, &value, size) == size else {
-                throw AppActivityObservationError.unavailable
+                throw AppActivityObservationError.syscall("proc_pidinfo", errno)
             }
             return AppActivityProcessInfo(pid: pid_t(bitPattern: value.pbi_pid),
                                           effectiveUID: value.pbi_uid, realUID: value.pbi_ruid,
@@ -196,11 +196,25 @@ struct AppActivityProcessSource: Sendable {
     static let maximumProcesses = 65_536
     var operations: AppActivityProcessOperations = .live
 
+    /// Each attempt is a complete new observation with all strict checks intact.
+    /// A process exiting or global PID-count churn may invalidate one attempt;
+    /// persistent incompleteness still fails closed after three fresh attempts.
+    func stableSnapshot() throws -> [AppActivityProcess] {
+        for attempt in 0..<3 {
+            try Task.checkCancellation()
+            do { return try snapshot() }
+            catch {
+                if attempt == 2 { throw error }
+            }
+        }
+        throw AppActivityObservationError.incomplete("retry boundary")
+    }
+
     /// The caller must enclose this synchronous method in the thread-local
     /// no-materialization scope. The public checker always establishes that scope.
     func snapshot() throws -> [AppActivityProcess] {
         let uid = operations.effectiveUID()
-        guard uid != 0, operations.realUID() == uid else { throw AppActivityObservationError.unavailable }
+        guard uid != 0, operations.realUID() == uid else { throw AppActivityObservationError.incomplete("credentials") }
         let initial = try currentUserPIDs(uid)
         var processes: [AppActivityProcess] = []
         for pid in initial.pids {
@@ -210,22 +224,22 @@ struct AppActivityProcessSource: Sendable {
             if before.status == UInt32(SZOMB) {
                 let after = try info(pid, uid: uid)
                 guard before.isSameInstance(as: after), after.status == UInt32(SZOMB) else {
-                    throw AppActivityObservationError.unavailable
+                    throw AppActivityObservationError.incomplete("zombie identity changed")
                 }
                 continue
             }
-            guard before.status != UInt32(SIDL) else { throw AppActivityObservationError.unavailable }
+            guard before.status != UInt32(SIDL) else { throw AppActivityObservationError.incomplete("process still initializing") }
             let path = try operations.executablePath(pid)
             let after = try info(pid, uid: uid)
             let secondPath = try operations.executablePath(pid)
             guard before.isSameInstance(as: after), after.status != UInt32(SIDL),
                   after.status != UInt32(SZOMB), path == secondPath, Self.validPath(path) else {
-                throw AppActivityObservationError.unavailable
+                throw AppActivityObservationError.incomplete("process identity or executable changed")
             }
             processes.append(AppActivityProcess(executablePath: path))
         }
         guard try initial == currentUserPIDs(uid), operations.effectiveUID() == uid,
-              operations.realUID() == uid else { throw AppActivityObservationError.unavailable }
+              operations.realUID() == uid else { throw AppActivityObservationError.incomplete("PID set or global sizing hint changed") }
         return processes
     }
 
@@ -234,7 +248,7 @@ struct AppActivityProcessSource: Sendable {
         guard value.pid == pid, value.effectiveUID == uid || value.realUID == uid,
               value.startedSeconds > 0, value.startedMicroseconds < 1_000_000,
               (UInt32(SIDL)...UInt32(SZOMB)).contains(value.status) else {
-            throw AppActivityObservationError.unavailable
+            throw AppActivityObservationError.incomplete("process metadata credentials or status")
         }
         return value
     }
@@ -253,7 +267,7 @@ struct AppActivityProcessSource: Sendable {
             guard size.pids.isEmpty, size.byteCount > 0, size.byteCount % stride == 0,
                   size.byteCount / stride <= Self.maximumProcesses - 128,
                   globalSizingHint == nil || globalSizingHint == size.byteCount else {
-                throw AppActivityObservationError.unavailable
+                throw AppActivityObservationError.incomplete("PID sizing hint or cross-filter global count")
             }
             globalSizingHint = size.byteCount
             // The size hint can become stale. Slack absorbs modest growth; a
@@ -268,20 +282,20 @@ struct AppActivityProcessSource: Sendable {
             guard list.byteCount > 0, list.byteCount % stride == 0,
                   list.byteCount < size.byteCount, list.byteCount < capacity * stride,
                   list.pids.count == capacity else {
-                throw AppActivityObservationError.unavailable
+                throw AppActivityObservationError.incomplete("PID buffer boundary")
             }
             let after = try operations.listPIDs(filter, uid, 0)
             guard after.pids.isEmpty, after.byteCount == size.byteCount else {
-                throw AppActivityObservationError.unavailable
+                throw AppActivityObservationError.incomplete("global sizing hint changed during list")
             }
             let pids = Array(list.pids.prefix(list.byteCount / stride))
             guard pids.allSatisfy({ $0 > 0 }), Set(pids).count == pids.count else {
-                throw AppActivityObservationError.unavailable
+                throw AppActivityObservationError.incomplete("invalid or duplicate PIDs")
             }
             result.formUnion(pids)
         }
         guard !result.isEmpty, result.count <= Self.maximumProcesses, let globalSizingHint else {
-            throw AppActivityObservationError.unavailable
+            throw AppActivityObservationError.incomplete("empty or excessive current-user PID set")
         }
         return PIDObservation(pids: result.sorted(), globalSizingHint: globalSizingHint)
     }
@@ -293,7 +307,7 @@ struct AppActivityProcessSource: Sendable {
         guard reportedCount > 0, reportedCount < bytes.count, bytes.count <= Int(MAXPATHLEN) * 4,
               bytes[reportedCount] == 0, !bytes.prefix(reportedCount).contains(0),
               let path = String(bytes: bytes.prefix(reportedCount), encoding: .utf8), validPath(path) else {
-            throw AppActivityObservationError.unavailable
+            throw AppActivityObservationError.incomplete("executable path boundary or encoding")
         }
         return path
     }
@@ -306,4 +320,7 @@ struct AppActivityProcessSource: Sendable {
     }
 }
 
-private enum AppActivityObservationError: Error { case unavailable }
+private enum AppActivityObservationError: Error {
+    case incomplete(String)
+    case syscall(String, Int32)
+}

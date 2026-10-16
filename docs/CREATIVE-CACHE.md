@@ -23,7 +23,7 @@ The Camera Raw candidate, introduced in schema-1 document `1.1.0` and retained u
 
 ## Producer activity boundary
 
-`AppActivity.check(producers:)` returns `running`, `notObservedRunning`, or `unknown`. It reads current-user kernel process identity and executable-path metadata under the no-materialization policy. It does not read project contents, arguments, environment, or preferences, and does not close applications. Unsupported producers, incomplete observations, malformed buffers, and detected process churn yield unknown activity.
+`AppActivity.check(producers:)` returns `running`, `notObservedRunning`, or `unknown`. It reads current-user kernel process identity and executable-path metadata under the no-materialization policy. It does not read project contents, arguments, environment, or preferences, and does not close applications. Unsupported producers, incomplete observations, malformed buffers, and detected process churn yield unknown activity. Live process collection makes up to three complete fresh attempts with the same strict checks, allowing a transient invalidated snapshot to be retried; persistent incompleteness remains unknown.
 
 Compiled names cover selected Photoshop, After Effects, render-engine, Lightroom Classic, Media Encoder, and Resolve identities. Bridge has no independently verified executable identity: the trusted metadata lookup was refused by ownership checks, while an application inventory label alone does not verify its executable or helpers. The candidate's declared producer set therefore yields `unknown`. Executable and bundle-family matching is conservative but incomplete; independently renamed helpers outside recognized bundles can escape it.
 

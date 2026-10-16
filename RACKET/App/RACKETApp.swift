@@ -45,6 +45,11 @@ struct RACKETApp: App {
                     .keyboardShortcut("r", modifiers: .command)
                     .disabled(model.busy || model.runtime == nil)
             }
+            CommandGroup(after: .textEditing) {
+                Button("Find in Results") { model.requestSearchFocus() }
+                    .keyboardShortcut("f", modifiers: .command)
+                    .disabled(!model.canFocusSearch)
+            }
         }
 
         Settings {

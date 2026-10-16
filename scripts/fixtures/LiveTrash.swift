@@ -120,11 +120,13 @@ private struct LiveTrashFixture {
         try require(finalSession.events.map(\.action) == [.prepared, .staged, .trashed, .restorePrepared, .restored],
                     "Unexpected authenticated removal/undo history")
         print("Live Foundation Trash and Undo passed: one original inode, identical bytes, five authenticated journal actions.")
+        fixtureStage("ordinary-file roundtrip passed")
         try await runApplication(context)
         print("Preserved synthetic home: \(home)")
     }
 
     private static func runApplication(_ context: FixtureContext) async throws {
+        fixtureStage("application fixture preparation")
         try context.verifyIdentityAndHome()
         let manager = FileManager.default
         let home = context.home
@@ -157,17 +159,21 @@ private struct LiveTrashFixture {
 
         // Production public inventory/review APIs must find exactly our chosen
         // bundle. Other inventory entries confer no selection authority.
+        fixtureStage("application inventory")
         let inventory = try ApplicationInventory()
         let report = try await inventory.scan()
         let selected = report.applications.filter { $0.path == source }
         try require(selected.count == 1 && selected[0].canUninstall,
                     "The synthetic application was not uniquely eligible for review")
+        fixtureStage("application removal review")
+        try verifyLiveProcessObservation()
         let reviewed = try await inventory.reviewRemoval(of: selected[0])
         try require(reviewed.application.path == source && reviewed.descendantCount == initial.count - 1 && reviewed.allocatedSize > 0,
                     "Application review did not bind the complete synthetic tree")
         try context.verifyIdentityAndHome()
         let manifest = try ManifestStore()
         let engine = try RemovalEngine(manifest: manifest)
+        fixtureStage("application Foundation Trash")
         let removed = try await engine.moveApplicationToTrash(reviewedApplication: reviewed, appVersion: "test-live-app-trash")
         try require(!removed.cancelled && removed.journalFailure == nil && removed.results.count == 1 &&
                     removed.results.first?.outcome == .trashed,
@@ -193,6 +199,7 @@ private struct LiveTrashFixture {
         // exercises the separate app-only authenticated undo capability.
         try context.verifyIdentityAndHome()
         let undo = try RemovalEngine(manifest: reopened)
+        fixtureStage("application authenticated undo")
         let restored = try await undo.restoreApplication(sessionID: removed.sessionID)
         try require(!restored.cancelled && restored.journalFailure == nil && restored.results.count == 1 &&
                     restored.results.first?.outcome == .restored,
@@ -210,6 +217,22 @@ private struct LiveTrashFixture {
                     repeated.journalFailure == nil && !repeated.cancelled,
                     "Repeated app undo must report already restored without another move")
         print("Live application Foundation Trash and Undo passed: complete original tree, identical bytes, five authenticated app journal actions.")
+    }
+
+    private static func fixtureStage(_ stage: String) {
+        FileHandle.standardError.write(Data("Live Trash fixture stage: \(stage)\n".utf8))
+    }
+
+    /// Read-only diagnostics use the same strict live source and do not replace
+    /// the independently repeated shipping guards in review/removal/undo.
+    private static func verifyLiveProcessObservation() throws {
+        do {
+            let observed = try withoutDatalessMaterialization { try AppActivityProcessSource().stableSnapshot() }
+            fixtureStage("live current-user process observation passed (\(observed.count) processes)")
+        } catch {
+            fixtureStage("live current-user process observation failed: \(error)")
+            throw error
+        }
     }
 
     private static func applicationIdentity(_ context: FixtureContext, path: String,

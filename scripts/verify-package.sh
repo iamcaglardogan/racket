@@ -36,6 +36,39 @@ for binary in "$app_path/Contents/MacOS/$executable" "$app_path"/Contents/Framew
   fi
 done
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$app_path"
+verify_installation() {
+  local bundle="$1"
+  local receipt="${2:-}"
+  local diagnostic
+  diagnostic="$(mktemp -d "${TMPDIR:-/private/tmp}/racket-installation-check.XXXXXX")/result.json"
+  # This trusted app entry point only loads its bundled rules and plist. It
+  # exits before windows, scanning, journals, preferences, or network access.
+  "$bundle/Contents/MacOS/RACKET" --verify-installation > "$diagnostic"
+  /usr/bin/python3 - "$diagnostic" "$bundle/Contents/Info.plist" "$receipt" <<'PY'
+import json, pathlib, plistlib, sys
+result = json.load(open(sys.argv[1], encoding="utf-8"))
+with open(sys.argv[2], "rb") as stream:
+    info = plistlib.load(stream)
+rules = result.get("enabledRules")
+if (result.get("status") != "pass" or result.get("bundleIdentifier") != info.get("CFBundleIdentifier")
+        or result.get("version") != info.get("CFBundleShortVersionString")
+        or result.get("minimumMacOS") != "14.0" or result.get("telemetry") is not False
+        or not isinstance(result.get("ruleSetVersion"), str) or not result["ruleSetVersion"]
+        or not isinstance(rules, list) or not rules or not all(isinstance(rule, str) for rule in rules)
+        or len(set(rules)) != len(rules)):
+    raise SystemExit("Bundle installation diagnostic did not pass all required checks")
+if sys.argv[3]:
+    receipt = pathlib.Path(sys.argv[3])
+    if receipt.exists():
+        if json.loads(receipt.read_text()) != result:
+            raise SystemExit("Existing installation receipt disagrees with the verified bundle")
+    else:
+        receipt.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+print("Bundle installation check passed:", info["CFBundleIdentifier"], "rules", result["ruleSetVersion"], "enabled", len(rules))
+print("Diagnostic receipt:", sys.argv[3] or sys.argv[1])
+PY
+}
+verify_installation "$app_path"
 if [[ "$require_notarized" == --require-notarized ]]; then
   signature="$(/usr/bin/codesign -dvv "$app_path" 2>&1)"
   [[ "$signature" == *'Authority=Developer ID Application:'* && "$signature" == *'(runtime)'* ]] || {
@@ -48,6 +81,7 @@ fi
 if [[ -n "$package_dir" ]]; then
   [[ -d "$package_dir" ]] || { printf '%s\n' 'Package directory does not exist.' >&2; exit 1; }
   package_dir="$(cd "$package_dir" && pwd)"
+  verify_installation "$app_path" "$package_dir/INSTALLATION-CHECK.json"
   version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")"
   suffix=-local
   [[ "$require_notarized" != --require-notarized ]] || suffix=
@@ -128,6 +162,8 @@ for root in map(pathlib.Path, sys.argv[2:]):
 PY
   /usr/bin/codesign --verify --deep --strict "$work/zip/RACKET.app"
   /usr/bin/codesign --verify --deep --strict "$work/dmg/RACKET.app"
+  verify_installation "$work/zip/RACKET.app" "$package_dir/ZIP-INSTALLATION-CHECK.json"
+  verify_installation "$work/dmg/RACKET.app" "$package_dir/DMG-INSTALLATION-CHECK.json"
   if [[ "$require_notarized" == --require-notarized ]]; then
     /usr/bin/codesign --verify --strict "$package_dir/$artifact_name.dmg"
     /usr/bin/xcrun stapler validate "$package_dir/$artifact_name.dmg"
@@ -136,4 +172,4 @@ PY
   mounted=false
   trap - EXIT
 fi
-printf '%s\n' 'Verified: universal binaries, minimum macOS 14, valid signatures, and no Debug verification entry point.'
+printf '%s\n' 'Verified: universal binaries, minimum macOS 14, valid signatures, bundled rule loading, and no Debug verification entry point.'

@@ -25,6 +25,9 @@ The local package contains:
 - `SHA256SUMS` for the exact archive bytes.
 - `BUNDLE-MANIFEST.json` for file hashes, permissions, and symlink targets inside the app.
 - `DISTRIBUTION.txt`, which records the actual signing status.
+- `INSTALLATION-CHECK.json`, `ZIP-INSTALLATION-CHECK.json`, and
+  `DMG-INSTALLATION-CHECK.json`, which record successful bundled-rule loading in
+  the copied app and both archive copies.
 
 An ad-hoc signature verifies the integrity of this local copy. It does **not**
 identify an Apple Developer ID publisher and is **not** Apple notarization.
@@ -35,7 +38,11 @@ The packaging script verifies both `arm64` and `x86_64` slices in the app and
 embedded frameworks, minimum macOS 14, strict code signatures, and absence of the
 Debug-only fixture argument and fixture rule. It extracts the ZIP, mounts the DMG
 read-only, checks their signatures, and compares both extracted bundles against
-the same manifest. SHA-256 checks prove the integrity of these artifacts, not
+the same manifest. It also executes each trusted app's `--verify-installation`
+entry point, which loads bundled rules and plist values and exits before starting
+windows, scanning, journals, preferences, or networking. Each diagnostic must
+report success with matching app metadata, disabled telemetry, and a nonempty
+unique set of enabled rules. SHA-256 checks prove the integrity of these artifacts, not
 byte-for-byte reproducibility across builds: signing timestamps and disk-image
 metadata can differ.
 

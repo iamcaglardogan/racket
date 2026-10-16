@@ -108,6 +108,39 @@ final class AppActivityTests: XCTestCase {
         XCTAssertEqual(unavailable.check(producers: [photoshop]), .unknown)
     }
 
+    func testStableSnapshotRetriesCompleteObservationAfterTransientMetadataFailure() throws {
+        let probe = ActivityProcessProbe(info: { pid, call in
+            if call == 1 { throw ActivityFixtureError.unavailable }
+            return activityInfo(pid)
+        })
+        let source = AppActivityProcessSource(operations: probe.operations)
+        let processes = try withoutDatalessMaterialization { try source.stableSnapshot() }
+        XCTAssertEqual(processes, [AppActivityProcess(executablePath: "/synthetic/runner")])
+        XCTAssertEqual(probe.events.filter { $0 == "info:41" }.count, 3)
+        XCTAssertEqual(probe.events.filter { $0.hasPrefix("list:") }.count, 18,
+                       "The retry must start with fresh complete PID enumeration")
+    }
+
+    func testStableSnapshotRetriesGlobalHintChurnWithoutWeakeningStrictAttempt() throws {
+        let probe = ActivityProcessProbe(list: { _, _, capacity, call in
+            if capacity == 0 && call == 3 { return AppActivityPIDList(byteCount: 65 * MemoryLayout<pid_t>.stride, pids: []) }
+            return activityPIDList([41], capacity: capacity)
+        })
+        let source = AppActivityProcessSource(operations: probe.operations)
+        let processes = try withoutDatalessMaterialization { try source.stableSnapshot() }
+        XCTAssertEqual(processes.count, 1)
+        XCTAssertGreaterThan(probe.events.filter { $0.hasPrefix("list:") }.count, 12)
+    }
+
+    func testStableSnapshotPersistentFailureStopsAfterThreeAttemptsAndRemainsUnknown() {
+        let probe = ActivityProcessProbe(info: { _, _ in throw ActivityFixtureError.unavailable })
+        let source = AppActivityProcessSource(operations: probe.operations)
+        XCTAssertThrowsError(try withoutDatalessMaterialization { try source.stableSnapshot() })
+        XCTAssertEqual(probe.events.filter { $0 == "info:41" }.count, 3)
+        let checker = AppActivity(snapshot: { try source.stableSnapshot() })
+        XCTAssertEqual(checker.check(producers: [photoshop]), .unknown)
+    }
+
     func testEffectiveAndRealUIDProcessSetsAreUnionedAndDuplicatePIDsInspectedOnce() {
         let probe = ActivityProcessProbe(list: { filter, _, capacity, _ in
             activityPIDList(filter == UInt32(PROC_UID_ONLY) ? [41, 42] : [42, 43], capacity: capacity)

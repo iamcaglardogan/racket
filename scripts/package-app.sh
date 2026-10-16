@@ -24,7 +24,7 @@ version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$sour
 artifact_name="RACKET-$version-macOS$suffix"
 mkdir -p "$output_dir"
 output_dir="$(cd "$output_dir" && pwd)"
-for reserved in RACKET.app "$artifact_name.zip" "$artifact_name.dmg" SHA256SUMS BUNDLE-MANIFEST.json DISTRIBUTION.txt NOTARIZATION.json; do
+for reserved in RACKET.app "$artifact_name.zip" "$artifact_name.dmg" SHA256SUMS BUNDLE-MANIFEST.json DISTRIBUTION.txt NOTARIZATION.json INSTALLATION-CHECK.json ZIP-INSTALLATION-CHECK.json DMG-INSTALLATION-CHECK.json; do
   [[ ! -e "$output_dir/$reserved" && ! -L "$output_dir/$reserved" ]] || {
     printf 'Refusing to overwrite existing output: %s\n' "$output_dir/$reserved" >&2; exit 1;
   }
