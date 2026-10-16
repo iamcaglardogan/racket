@@ -85,6 +85,91 @@ final class AppFlowTests: XCTestCase {
         model.page = .settings; try await snapshot(model, name: "07-settings")
     }
 
+    func testMountedApplicationPageHasVisibleNativeFixtureRowAndExactPath() async throws {
+        let model = AppModel(); model.start(); try await idle(model)
+        model.loadApplications(); try await idle(model)
+        let application = try XCTUnwrap(model.applicationReport?.applications.first)
+        model.page = .applications
+        let host = NSHostingView(rootView: ApplicationsPage().environmentObject(model))
+        host.sizingOptions = []
+        host.autoresizingMask = [.width, .height]
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1140, height: 780),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        defer { window.orderOut(nil) }
+        window.contentView = host
+        host.frame = NSRect(x: 0, y: 0, width: 1140, height: 780)
+        window.makeKeyAndOrderFront(nil)
+        try await Task.sleep(for: .milliseconds(300))
+        host.layoutSubtreeIfNeeded()
+        let nodes = ownAccessibilityContent(of: host)
+        func tables(_ view: NSView) -> [NSTableView] {
+            (view as? NSTableView).map { [$0] } ?? view.subviews.flatMap(tables)
+        }
+        let nativeTables = tables(host)
+        let tableReport = nativeTables.map { "Native table rows=\($0.numberOfRows) frameInHost=\(host.convert($0.bounds, from: $0)) visibleRect=\($0.visibleRect) firstRow=\($0.numberOfRows > 0 ? $0.rect(ofRow: 0) : .zero) rowInstantiated=\($0.rowView(atRow: 0, makeIfNecessary: false) != nil)" }.joined(separator: "\n")
+        XCTAssertEqual(nativeTables.first?.numberOfRows, 1, "The actual app List must bind one fixture row")
+        let report = tableReport + "\n" + nodes.map { "\($0.role) frame=\($0.frame) enabled=\($0.enabled) hidden=\($0.hidden): \($0.text)" }.joined(separator: "\n")
+        let attachment = XCTAttachment(string: report)
+        attachment.name = "Application view own accessibility content"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        let table = try XCTUnwrap(nativeTables.first)
+        let tableInHost = host.convert(table.bounds, from: table)
+        XCTAssertTrue(host.bounds.intersects(tableInHost), "The actual app list must intersect its hosting viewport")
+        XCTAssertTrue(table.visibleRect.intersects(table.rect(ofRow: 0)), "The fixture row must be in the native table's visible viewport")
+        XCTAssertNotNil(table.rowView(atRow: 0, makeIfNecessary: false), "The visible fixture row must already be instantiated")
+        let hostOnScreen = window.convertToScreen(host.convert(host.bounds, to: nil))
+        XCTAssertTrue(nodes.contains {
+            Data($0.text.utf8) == Data(application.path.utf8) && $0.frame.width > 0 && $0.frame.height > 0 &&
+            !$0.hidden && hostOnScreen.intersects($0.frame)
+        }, "The actual mounted row must expose its exact fixture path inside the window.\n\(report)")
+        // SwiftUI-drawn headings and button labels are not exposed by this
+        // generic test host's accessibility bridge. This test claims native
+        // table realization and exact selectable-path content only.
+    }
+
+    private struct OwnAccessibilityContent {
+        let text: String
+        let role: String
+        let frame: NSRect
+        let enabled: Bool
+        let hidden: Bool
+    }
+
+    /// Reads only objects owned by this mounted hosting view. No external AX
+    /// process, permission request, input action, or screen capture is involved.
+    private func ownAccessibilityContent(of root: NSView) -> [OwnAccessibilityContent] {
+        var seen = Set<ObjectIdentifier>()
+        var result: [OwnAccessibilityContent] = []
+        func visit(_ object: AnyObject) {
+            guard seen.insert(ObjectIdentifier(object)).inserted, seen.count <= 4_096 else { return }
+            if let element = object as? any NSAccessibilityProtocol {
+                let value = element.accessibilityValue()
+                let texts = [element.accessibilityLabel(), element.accessibilityTitle(), value as? String,
+                             (value as? NSAttributedString)?.string].compactMap { $0 }.filter { !$0.isEmpty }
+                result.append(OwnAccessibilityContent(text: texts.joined(separator: " | "),
+                                                     role: (element.accessibilityRole()?.rawValue ?? "unknown") + " " + String(describing: type(of: object)),
+                                                     frame: element.accessibilityFrame(), enabled: element.isAccessibilityEnabled(),
+                                                     hidden: element.isAccessibilityHidden()))
+                for child in (element.accessibilityChildren() ?? []) + (element.accessibilityVisibleChildren() ?? []) {
+                    visit(child as AnyObject)
+                }
+            }
+            if let view = object as? NSView { for child in view.subviews { visit(child) } }
+        }
+        visit(root)
+        for child in NSAccessibility.unignoredChildrenForOnlyChild(from: root) { visit(child as AnyObject) }
+        if let window = root.window {
+            for x in stride(from: CGFloat(20), through: root.bounds.width - 20, by: 120) {
+                for y in stride(from: CGFloat(20), through: root.bounds.height - 20, by: 90) {
+                    let point = window.convertPoint(toScreen: root.convert(NSPoint(x: x, y: y), to: nil))
+                    if let hit = root.accessibilityHitTest(point) { visit(hit as AnyObject) }
+                }
+            }
+        }
+        return result
+    }
+
     private func idle(_ model: AppModel) async throws {
         for _ in 0..<400 {
             if !model.busy { return }
