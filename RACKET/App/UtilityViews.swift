@@ -42,7 +42,8 @@ struct StoragePage: View {
                             Button { model.reveal(entry.url.path) } label: { Image(systemName: "arrow.up.forward.square") }
                                 .buttonStyle(.borderless).accessibilityLabel("Reveal \(entry.name) in Finder")
                         }.padding(.vertical, 6)
-                    }.listStyle(.inset).clipShape(RoundedRectangle(cornerRadius: 12))
+                    }.listStyle(.inset).frame(minHeight: 0, maxHeight: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 DisclosureGroup("Observation details · \(report.issues.count) skipped or unavailable items") {
                     ScrollView {
@@ -96,7 +97,8 @@ struct ApplicationsPage: View {
                         Button("Reveal") { model.reveal(app.path) }
                         Button("Review removal") { model.reviewApplication(app) }.disabled(model.busy || !app.canUninstall)
                     }.padding(.vertical, 9)
-                }.listStyle(.inset).clipShape(RoundedRectangle(cornerRadius: 12))
+                }.listStyle(.inset).frame(minHeight: 0, maxHeight: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 if !report.issues.isEmpty || report.limited {
                     DisclosureGroup("Discovery details · \(report.issues.count) issues\(report.limited ? " · Limit reached" : "")") {
                         ScrollView {
@@ -216,7 +218,7 @@ struct SettingsPage: View {
                         Text("Follow macOS").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark")
                     }
                     Toggle("Show RACKET in the menu bar", isOn: $model.menuBarEnabled)
-                    Toggle("Open at login", isOn: Binding(get: { model.launchAtLogin }, set: model.setLogin))
+                    Toggle("Open at login", isOn: Binding(get: { model.launchAtLogin }, set: { enabled in model.setLogin(enabled) }))
                         .disabled(model.verificationMode)
                 }
                 Section("Scheduled scans") {

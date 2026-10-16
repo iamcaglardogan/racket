@@ -116,6 +116,32 @@ final class RuleSetTests: XCTestCase {
         XCTAssertTrue(source.filtered(modules: []).rules.isEmpty)
     }
 
+    func testRuleIdentifiersAcceptExactlyTheASCIISchemaAlphabet() throws {
+        let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+        let permitted = Set(alphabet.utf8)
+        XCTAssertEqual(try decode(document(rules: [rule(id: alphabet)])).rules.first?.id, alphabet)
+        for byte in UInt8(0)...UInt8(127) {
+            let id = "fixture" + String(decoding: [byte], as: UTF8.self) + "cache"
+            if permitted.contains(byte) {
+                XCTAssertEqual(try decode(document(rules: [rule(id: id)])).rules.first?.id, id)
+            } else {
+                XCTAssertThrowsError(try decode(document(rules: [rule(id: id)])), "ASCII byte \(byte) must be refused") { error in
+                    guard case RuleValidationError.invalidField("id", _) = error else {
+                        return XCTFail("Expected ID grammar refusal for byte \(byte); received \(error)")
+                    }
+                }
+            }
+        }
+    }
+
+    func testRuleIdentifierUnicodeAndLengthBoundariesRemainStrict() throws {
+        let longest = String(repeating: "a", count: 256)
+        XCTAssertEqual(try decode(document(rules: [rule(id: longest)])).rules.first?.id, longest)
+        for id in ["", longest + "a", "café", "cafe\u{0301}", "日本語", "fixture\u{FF0F}cache", "ＡＢＣ", "fixture\u{200B}cache"] {
+            XCTAssertThrowsError(try decode(document(rules: [rule(id: id)])), "Invalid identifier must remain refused")
+        }
+    }
+
     func testMissingEnableAndVerificationFlagsDefaultToDisabled() throws {
         var example = rule()
         example["verified"] = nil

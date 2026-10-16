@@ -12,6 +12,17 @@ struct MainWindow: View {
     @FocusState private var searchFocused: Bool
 
     var body: some View {
+        GeometryReader { viewport in
+            navigationContent
+                .frame(width: viewport.size.width, height: viewport.size.height)
+        }
+        .tint(scheme == .dark ? Color(red: 0.808, green: 0.537, blue: 0.604) : RacketStyle.accent)
+        .sheet(isPresented: $model.showOnboarding) { OnboardingView().environmentObject(model) }
+        .sheet(isPresented: $model.confirmCleanup) { CleanupConfirmation().environmentObject(model) }
+        .sheet(isPresented: $model.confirmApplication) { ApplicationConfirmation().environmentObject(model) }
+    }
+
+    private var navigationContent: some View {
         NavigationSplitView {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 10) {
@@ -47,31 +58,36 @@ struct MainWindow: View {
             }
             .navigationSplitViewColumnWidth(min: 215, ideal: 235, max: 280)
         } detail: {
-            VStack(spacing: 0) {
-                if model.verificationMode {
-                    Label("Verification workspace · Sample files · Real user data is untouched", systemImage: "testtube.2")
-                        .font(.caption).frame(maxWidth: .infinity).padding(8).background(.yellow.opacity(0.13))
+            // Native macOS Lists have a large intrinsic height. A flexible
+            // detail viewport keeps that estimate from enlarging the split.
+            GeometryReader { detailViewport in
+                VStack(spacing: 0) {
+                    if model.verificationMode {
+                        Label("Verification workspace · Sample files · Real user data is untouched", systemImage: "testtube.2")
+                            .font(.caption).frame(maxWidth: .infinity).padding(8).background(.yellow.opacity(0.13))
+                    }
+                    if model.busy {
+                        HStack(spacing: 12) {
+                            ProgressView().controlSize(.small)
+                            Text(model.operation).font(.callout)
+                            if let progress = model.scanProgress {
+                                Text("\(progress.completedPaths) / \(progress.totalPaths) paths").foregroundStyle(.secondary).monospacedDigit()
+                            }
+                            Spacer()
+                            Button("Cancel") { model.cancel() }.controlSize(.small)
+                        }.padding(12).background(.quaternary.opacity(0.5))
+                    }
+                    if let error = model.errorMessage {
+                        MessageBar(text: error, symbol: "exclamationmark.circle", isError: true) { model.errorMessage = nil }
+                    }
+                    if let notice = model.notice {
+                        MessageBar(text: notice, symbol: "info.circle", isError: false) { model.notice = nil }
+                    }
+                    pageContent
                 }
-                if model.busy {
-                    HStack(spacing: 12) {
-                        ProgressView().controlSize(.small)
-                        Text(model.operation).font(.callout)
-                        if let progress = model.scanProgress {
-                            Text("\(progress.completedPaths) / \(progress.totalPaths) paths").foregroundStyle(.secondary).monospacedDigit()
-                        }
-                        Spacer()
-                        Button("Cancel") { model.cancel() }.controlSize(.small)
-                    }.padding(12).background(.quaternary.opacity(0.5))
-                }
-                if let error = model.errorMessage {
-                    MessageBar(text: error, symbol: "exclamationmark.circle", isError: true) { model.errorMessage = nil }
-                }
-                if let notice = model.notice {
-                    MessageBar(text: notice, symbol: "info.circle", isError: false) { model.notice = nil }
-                }
-                pageContent
+                .frame(width: detailViewport.size.width, height: detailViewport.size.height, alignment: .top)
+                .background(scheme == .light ? Color(red: 0.961, green: 0.953, blue: 0.933) : Color(nsColor: .windowBackgroundColor))
             }
-            .background(scheme == .light ? Color(red: 0.961, green: 0.953, blue: 0.933) : Color(nsColor: .windowBackgroundColor))
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     if model.page == .cleanup || model.page == .applications {
@@ -89,10 +105,6 @@ struct MainWindow: View {
                 }
             }
         }
-        .tint(scheme == .dark ? Color(red: 0.808, green: 0.537, blue: 0.604) : RacketStyle.accent)
-        .sheet(isPresented: $model.showOnboarding) { OnboardingView().environmentObject(model) }
-        .sheet(isPresented: $model.confirmCleanup) { CleanupConfirmation().environmentObject(model) }
-        .sheet(isPresented: $model.confirmApplication) { ApplicationConfirmation().environmentObject(model) }
     }
 
     @ViewBuilder private var pageContent: some View {

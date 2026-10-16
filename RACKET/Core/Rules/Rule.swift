@@ -110,8 +110,14 @@ public struct Rule: Codable, Equatable, Sendable {
             ? try values.decode(Bool.self, forKey: .requiresClosedApplications) : false
 
         try requireRuleText(id, field: "id", maximumBytes: 256)
-        let identifierCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
-        guard id.unicodeScalars.allSatisfy(identifierCharacters.contains) else {
+        // The identifier grammar is ASCII. Check its encoded bytes directly,
+        // without a captured Foundation CharacterSet membership predicate in
+        // this optimized Decodable initializer. Non-ASCII UTF-8 bytes cannot
+        // pass these ranges; the independent text/length check remains above.
+        guard id.utf8.allSatisfy({ byte in
+            (65...90).contains(byte) || (97...122).contains(byte) ||
+            (48...57).contains(byte) || byte == 46 || byte == 95 || byte == 45
+        }) else {
             throw RuleValidationError.invalidField("id", "Use only ASCII letters, numbers, dots, underscores, and hyphens.")
         }
         try requireRuleText(title, field: "title", maximumBytes: 512)

@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 @testable import RacketCore
 
+#if DEBUG
 final class AppRuntimeTests: XCTestCase {
     func testReviewedScanRemovalAndReopenedHistoryUndoPreserveSyntheticFiles() async throws {
         let runtime = try AppRuntime.verification()
@@ -32,3 +33,4 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(try runtime.manifest.sessionIDs().count, 2)
     }
 }
+#endif

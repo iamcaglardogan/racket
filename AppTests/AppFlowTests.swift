@@ -128,6 +128,43 @@ final class AppFlowTests: XCTestCase {
         // table realization and exact selectable-path content only.
     }
 
+    func testFullWindowListPagesKeepNativeViewportsWithinWindow() async throws {
+        let model = AppModel(); model.start(); try await idle(model)
+        model.loadApplications(); try await idle(model)
+        let root = try XCTUnwrap(model.runtime?.verificationRoot)
+        model.explore(root); try await idle(model)
+        model.page = .applications
+        let host = NSHostingView(rootView: MainWindow().environmentObject(model).frame(width: 1140, height: 780))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1140, height: 780),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        defer { window.orderOut(nil) }
+        window.contentView = host
+        host.frame = NSRect(x: 0, y: 0, width: 1140, height: 780)
+        window.makeKeyAndOrderFront(nil)
+        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+        for page in [AppPage.applications, .storage, .applications] {
+            model.page = page
+            try await Task.sleep(for: .milliseconds(300))
+            host.layoutSubtreeIfNeeded()
+            let views = descendants(host)
+            let split = try XCTUnwrap(views.compactMap { $0 as? NSSplitView }.first)
+            XCTAssertLessThanOrEqual(split.bounds.height, host.bounds.height + 1,
+                                     "The split must fit the available window height on \(page)")
+            let table = try XCTUnwrap(views.compactMap { $0 as? NSTableView }.first)
+            XCTAssertGreaterThan(table.numberOfRows, 0)
+            XCTAssertLessThanOrEqual(table.bounds.height, host.bounds.height + 1)
+            XCTAssertTrue(table.visibleRect.intersects(table.rect(ofRow: 0)), "The first native row must remain visible on \(page)")
+            XCTAssertNotNil(table.rowView(atRow: 0, makeIfNecessary: false))
+            let hostOnScreen = window.convertToScreen(host.convert(host.bounds, to: nil))
+            let nodes = ownAccessibilityContent(of: host)
+            if page == .applications {
+                let path = try XCTUnwrap(model.applicationReport?.applications.first?.path)
+                XCTAssertTrue(nodes.contains { Data($0.text.utf8) == Data(path.utf8) && hostOnScreen.intersects($0.frame) },
+                              "The full-window application row must expose its exact path inside the visible window")
+            }
+        }
+    }
+
     private struct OwnAccessibilityContent {
         let text: String
         let role: String
