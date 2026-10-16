@@ -2,7 +2,7 @@ import Foundation
 
 /// Human-readable matching data, never authority to access or remove a path.
 public struct Rule: Codable, Equatable, Sendable {
-    public enum Module: String, Codable, Sendable {
+    public enum Module: String, Codable, Hashable, Sendable {
         case creative
         case developer
         case system

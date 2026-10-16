@@ -1,58 +1,72 @@
 # Contributing to RACKET
 
-RACKET is being built in reviewable phases. Read [SAFETY.md](SAFETY.md) before proposing an implementation change and check the current phase in [README.md](README.md). Phases 1–3 are accepted and merged. Phase 4 is in progress in [draft PR 4](https://github.com/iamcaglardogan/racket/pull/4), with required checks passing at `8f94aa5`. Grouping and producer guards are implemented; vendor verification and the owner checkpoint remain open. No cleanup rule is enabled, no live vendor project resolver is implemented, and product interface work remains a later phase.
+Read [SAFETY.md](SAFETY.md) before changing filesystem behavior. RACKET 0.1.0 is a local preview with three enabled developer caches, a SwiftUI review/recovery flow, read-only storage inspection and conservative application-bundle removal. Creative cleanup remains disabled. [README.md](README.md) and the [dated verification report](docs/VERIFICATION-2026-10-16.md) describe the current scope and evidence.
+
+The owner delegated completion of the full flow on October 15, 2026. Earlier phase approval stops no longer block this development run. Safety requirements and missing Apple distribution credentials still apply; do not enable an unverified rule to satisfy a feature list.
 
 ## Build and verify
 
-Use a full Xcode installation with Swift 6 for `make build` and `make test`; the build prepares a pinned XcodeGen tool locally. `make core-build` compiles the headless core with Swift 6 Command Line Tools; CryptoKit is an Apple platform framework, not a third-party dependency. `make core-test` additionally requires XCTest, which is absent from some Command Line Tools installations. Neither package command validates the application. See the README for the current verification limits.
+Use full Xcode with a Swift 6 toolchain for `make build` and `make test`. `make core-build` can use suitable Swift 6 Command Line Tools; `make core-test` additionally needs XCTest. Core compilation/tests do not establish UI behavior or package validity.
 
-Edit `project.yml`, not the generated Xcode project. Keep `Core/` independent of SwiftUI. Do not introduce a dependency without the owner's approval. Run `make check-policy` alongside the relevant tests; it flags selected destructive and networking APIs, misplaced Trash calls, and UI imports in the core. It is a source guardrail, not proof of runtime safety. Record the commands run, their results, and anything you could not verify in the pull request. See [testing scope and limits](docs/TESTING.md).
+```sh
+make build
+make test
+make core-test
+make check-policy
+```
+
+Edit `project.yml`, not the generated Xcode project. Keep Core independent of SwiftUI/AppKit and preserve Swift 6 strict concurrency. Application and core targets currently have no third-party dependencies. Proposed dependencies need a documented reason, privacy assessment and compatibility with the safety contract.
+
+Source-policy checks flag selected permanent-deletion/network APIs, misplaced Trash calls and UI imports in Core. They are guardrails rather than proof of runtime safety. Record relevant commands, exact results and unverified cases in a PR. See [TESTING.md](docs/TESTING.md).
+
+Release packaging is separate from building. [DISTRIBUTION.md](docs/DISTRIBUTION.md) documents `make package`, archive verification and the credential-gated `make release`. Do not describe ad-hoc packages as Developer ID signed, notarized or publicly Homebrew-installable. Debug fixture entry points must be absent from Release artifacts.
 
 ## Adding or changing a cleanup rule
 
-The rule model and loader are implemented; Phase 4 adds pure grouping and continues creative rule verification. Bundled `RACKET/Core/Rules/Rules/core-v1.json` version `1.1.0` contains one disabled, unverified Camera Raw candidate. A rule proposal must include:
+Bundled `RACKET/Core/Rules/Rules/core-v1.json` version 1.2.0 enables exactly the three developer locations documented in [RULE-VERIFICATION.md](docs/RULE-VERIFICATION.md). Camera Raw remains disabled. Every proposal needs:
 
-- A unique identifier, producer bundle identifiers, bounded paths and walk depth, and applicable conditions.
-- A plain-language `reason` and `regenerationCost`, rendered directly in the future findings interface.
-- A source citation from the application's vendor or another primary source supporting the path and its purpose.
-- A risk tier that reflects the cost of recovery. Deliberate downloads and data that may be the only local copy belong in `judgement`, which is never preselected.
-- Verification notes naming the application version, macOS version, path, expected contents, and whether the application must be closed. Merely finding a directory or having the app installed does not establish that its contents are safe to remove.
-- The complete producer set for a shared cache, including relevant helpers, plus `requiresClosedApplications: true` when cleanup requires a fresh closed-application observation. Unsupported producer identities remain unknown and cannot satisfy that guard.
+- A unique ID, module, complete producer set, bounded exact paths, walk depth and conditions.
+- A readable reason and regeneration cost, rendered directly in cleanup review.
+- A vendor or other primary source supporting the path and purpose.
+- A risk tier that reflects recovery costs. Deliberate downloads or potentially unique data belong in `judgement`, which is never preselected.
+- Producer/macOS versions, the expected content boundary and isolated real-producer regeneration evidence. Directory presence, app installation and owner confirmation of a default location alone do not establish safety.
+- Supported process identities and helpers; use `requiresClosedApplications: true` when a fresh absence observation is required. Unknown or incomplete producer sets must refuse progress.
+- Accepted/refused examples, boundary tests and synthetic integration through review, fixture Trash and undo.
 
-If a path or its behavior has not been verified, include `"verified": false` and `"enabled": false`. Missing flags default to false; explicit nulls are rejected, and an enabled unverified rule fails validation. Do not infer ownership or safe deletion from a cache-like name. When an API or path is uncertain, document the uncertainty before relying on it.
+Unverified proposals use `"verified": false` and `"enabled": false`. Missing flags default to false; null/nonboolean flags and enabled-unverified rules fail validation. Never infer cleanup safety merely from a cache-like name. Cache refill can still depend on a network, credentials and an available historical source; explain loss of offline availability.
 
-Rules cannot grant themselves removal authority. Every declaration, even a disabled rule, must pass the compiled safe-root allow-list and independent protected-root checks. Only `~/Library/Caches` and `~/Library/Logs` are enumerated in this phase. Rule data cannot specify roots, change home-directory resolution, or relax protected paths. Any proposed change to roots requires its own safety justification and adversarial tests. A directory-contents declaration may name a root, but the root itself can never be a removal candidate.
+Rules cannot grant themselves authority. Every declaration, including disabled ones, must pass the compiled roots and protected-name policy. Current roots are Caches, Logs, exact npm `_cacache`, and exact Xcode `ModuleCache.noindex`; the bundled enabled paths are narrower. Root changes require a separate safety justification and adversarial tests. No root itself is a removal candidate. Do not broaden authority to all `.npm` or DerivedData: those locations can contain configuration, installed tools and source checkouts.
 
-Schema 1 requires a three-part numeric document version. It supports only `directoryContents` with `maxDepth` from 1 through 32, and at most one `olderThanDays` condition from 1 through 36,500. Phase 2 adds the optional Boolean `skipExcludedFromBackup`, which defaults to false; explicit nulls and other types are rejected. Only explicit true enables this filter, and the scanner reports excluded items. Unknown fields and matching modes, duplicate JSON keys including escaped equivalents, duplicate IDs, missing reasons or regeneration notes, and invalid citations fail validation. Citations must be HTTPS URLs without embedded credentials. The loader caps input at 1 MiB, 1,000 rules, and 64 paths per rule; see the model for field-length limits.
+Schema 1 requires a three-part numeric document version, `directoryContents` matching, depth 1–32 and at most one integral `olderThanDays` condition from 1–36,500. Optional Boolean `skipExcludedFromBackup` and `requiresClosedApplications` default to false and reject null/type coercion. Unknown fields/modes, duplicate JSON keys/IDs, invalid bounds, missing reasons/costs and invalid citations are rejected. Citations require HTTPS without embedded credentials. Documents are bounded to 1 MiB, 1,000 rules and 64 paths per rule.
 
-Phase 4 adds optional Boolean `requiresClosedApplications`, also defaulting to false and rejecting null or other types. Guarded findings retain the required producer set, and grouping/removal reject a mismatch with the current rule. Preserve checks before and after each scan job and before removal mutations. Process names are incomplete identity heuristics; tests must cover unknown states and launch/exec changes without claiming an application lock. Owner confirmation of default locations is context, not path or content verification.
+Use `RuleSet.bundled()` for current-user production loading, or the explicit Data/fixed-resource loader with a synthetic `SafeRoots.validateRulePath` for tests. `filtered(modules:)` only narrows an already validated snapshot. No arbitrary filesystem/network rule loader exists. Scanner and removal independently recheck policy. Reserved staging names cannot become findings.
 
-Use the fixed bundle loader in the application and the explicit Data loader for synthetic tests. Supply `SafeRoots.validateRulePath` as the path validator. Validation checks declarations; the scanner independently checks rule paths and actual children, and the removal boundary rechecks its own scope and the current rule. Add tests for accepted and refused examples, including disabled unsafe rules. There is no filesystem path or network rule-loading API. The reserved `.racket-staging` name cannot become a rule location or scan finding.
+## Scanner, storage and creative work
 
-## Changing the scanner
+Read [SCANNING.md](docs/SCANNING.md) before changing metadata access, traversal or size accounting. Keep no-materialization scopes synchronous, including ancestor lookup, and restore prior thread state on every exit. No explicit stat/size/content work may precede dataless gates. Injected call-order checks and ordinary-file tests do not prove real-provider behavior.
 
-Read [SCANNING.md](docs/SCANNING.md) before changing metadata access, traversal, scheduling, or size totals. Keep the entire no-materialization policy scope synchronous, including ancestor lookup, and preserve its restoration on error. No size query or regular-file content read may precede dataless gates. Test injected metadata call order independently of ordinary-file integration; do not describe either as proof against real provider hydration.
+Exact finding tests need fixed reference dates and synthetic rule data. Assert skips, refusals, depth/entry/result bounds, cancellation, deterministic overlap ownership, hard-link deduplication and overflow handling. Allocation must come from allocated metadata or controlled injected values, not logical length.
 
-Use a fixed reference date and synthetic rule data for exact findings tests. Assert reported skips and refusals as well as findings, depth and entry limits, cancellation, deterministic overlapping-rule behavior, hard-link deduplication, and overflow refusal. Allocated-size expectations must come from allocated metadata or controlled injected values, not logical file length. Do not add directory findings or enable cache rules to make the test harness more convenient.
+The [storage explorer](docs/STORAGE.md) has separate read-only inspection authority. A chosen folder or explorer entry must never become a cleanup selection merely because it was measured. Report partial coverage and package/link/cloud skips.
 
-For creative grouping, retain exact findings, byte-exact paths, complete producer sets, and supplied association provenance. Do not infer a project from a directory name or present file modification time as last-opened time. A live vendor resolver needs separate verified formats and fixtures; the current grouping API is not one. [CREATIVE-CACHE.md](docs/CREATIVE-CACHE.md) records deferred paths and producer gaps.
+Creative grouping retains original findings, byte-exact paths, complete producer sets and explicit association provenance. It performs no live project discovery. Do not infer a project from its folder name or equate file modification time with last-opened time. [CREATIVE-CACHE.md](docs/CREATIVE-CACHE.md) records deferred creative paths and producer gaps.
 
-## Test data and file safety
+## Removal, recovery and app management
 
-XCTest and local checks use isolated synthetic fixtures. They must never scan or mutate a developer’s home directory, creative projects, application caches, real Trash, or live cloud storage. No test, teardown, helper script, or scratch utility may permanently delete user-visible content. Test cleanup follows the same safety contract as application code; do not add deletion calls to make a test convenient.
+Read [REMOVAL.md](docs/REMOVAL.md) and [APPLICATIONS.md](docs/APPLICATIONS.md). Preserve synchronous actor operations, no-materialization scope, cross-instance locks, durable intent before moves and a stop on journal failure. Ordinary file removal requires original scanner observations matching current path, metadata, producer guard and rule. Public callers cannot manufacture a removal receipt.
 
-Only `RemovalEngine` may call the Trash API. XCTest and local fixtures retain all files inside unique private temporary homes and use an injected fake Trash transport and manifest location; they must not invoke the live transport or use the production manifest initializer.
+App directories require the independent bounded whole-tree review and app-specific journal/undo routing. This capability does not authorize arbitrary folders or application leftovers. Preserve refusal of system/self/other-owner apps and linked/shared/dataless/protected/unsupported descendants. Review and removal must make fresh process observations.
 
-The sole exception for live transport and production manifest initialization is the guarded [CI integration fixture](docs/TESTING.md#guarded-live-integration): it runs only on a disposable GitHub-hosted macOS VM under a new synthetic OS account whose actual home is the fixture directory. Never run `scripts/check-live-trash.sh` locally or on a self-hosted runner, and never spoof its environment guards. The fixture must use public Core entry points, with no direct Trash call, and preserve its account and files for the VM’s lifetime. Its account preflight is not an atomic reservation; concurrent account setup is outside this disposable-job assumption.
+Test substitutions before/after capture, changed trees, journal failures, uncertain transport outcomes, occupied restore destinations and interrupted recovery. Never overwrite a destination, create a missing original parent, copy/delete across volumes or guess a Trash path by name. Keep the final Foundation race, same-UID interference and HMAC limitations explicit.
 
-Removal tests must record the manifest before invoking the transport and prove that a failure preserves that record. Required adversarial coverage is mapped in SAFETY.md.
+## Test data and product verification
 
-## Changing removal or recovery
+XCTest, producer harnesses and Debug UI checks use unique private temporary fixtures. They must not scan or mutate a developer's home, real caches, installed apps, creative projects, real Trash or live cloud data. Retain generated fixtures; no permanent-deletion teardown is allowed. Only `RemovalEngine` may call Foundation Trash. Local checks inject fake transport and manifest storage.
 
-Read [REMOVAL.md](docs/REMOVAL.md) before changing the transaction order. Preserve synchronous actor operations, the no-materialization thread scope, the cross-instance operation lock, durable intent records, and a stop on journal failure. Accept only explicitly supplied scan observations that still match the current path, metadata, and rule; a synthetic test `Finding` without the scanner’s internal metadata observation is not a removal authorization. `Finding` has no public initializer.
+Debug UI verification uses `--verification-fixtures` and an isolated `AppRuntime.verification()` workspace. That argument/factory/synthetic rule must not exist in distributed Release binaries. Test the visible selection, hidden selections, exclusions, confirmation, cancellation, result reporting and both ordinary/app undo paths. A successful headless suite alone is not UI evidence.
 
-Test substitutions before and after capture, failed journal writes, uncertain transport outcomes, occupied restore destinations, and interrupted operations. No fallback may overwrite a destination, recreate a missing original parent, move a directory as a removal unit, copy across volumes, or guess a Trash location by name. Keep the remaining Foundation race and the limits of local manifest authentication visible in documentation and review notes.
+The sole live-transport exception is the [guarded CI fixture](docs/TESTING.md#guarded-live-integration) under a new synthetic OS account on a disposable GitHub-hosted macOS VM. Never run its account-setup script locally or on a self-hosted runner, and never spoof guards. Preserve its account/files for the VM's lifetime. Owner-authorized read-only production use must be separately labelled and must not convert personal files into test fixtures.
 
 ## Reporting a problem
 
-Use a public issue for ordinary build bugs or feature proposals, with synthetic examples and redacted paths. Report an incorrect removal, possible data loss, path-guard bypass, or unexpected network request through the [private security report](https://github.com/iamcaglardogan/racket/security/advisories/new). Do not attach personal manifests, source media, or private filesystem paths to a public issue.
+Ordinary build/feature reports should use synthetic examples and redacted paths. Incorrect removal, possible data loss, path-guard bypass or unexpected network activity belongs in a [private security report](https://github.com/iamcaglardogan/racket/security/advisories/new). Never attach personal manifests, source media or private filesystem paths to a public issue.

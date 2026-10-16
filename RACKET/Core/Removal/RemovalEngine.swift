@@ -36,14 +36,16 @@ struct RemovalOperations: Sendable {
     static let live = RemovalOperations(
         trash: { path in
             var destination: NSURL?
-            try FileManager.default.trashItem(at: URL(fileURLWithPath: path, isDirectory: false), resultingItemURL: &destination)
+            try FileManager.default.trashItem(at: removalFileURL(path), resultingItemURL: &destination)
             guard let destination else { throw RemovalSafetyError.unsafeRecoveryLocation }
-            return destination.path ?? ""
+            return (destination as URL).withUnsafeFileSystemRepresentation { bytes in
+                bytes.map { String(cString: $0) } ?? ""
+            }
         },
         isInTrash: { path in
             var relationship: FileManager.URLRelationship = .other
             try FileManager.default.getRelationship(&relationship, of: .trashDirectory, in: [],
-                                                    toItemAt: URL(fileURLWithPath: path, isDirectory: false))
+                                                    toItemAt: removalFileURL(path))
             return relationship == .contains
         }
     )
@@ -57,6 +59,7 @@ public actor RemovalEngine {
     private let manifest: ManifestStore
     private let operations: RemovalOperations
     private let appActivity: AppActivity
+    private let applicationActivity: ApplicationProcessActivity
 
     public init(manifest: ManifestStore) throws {
         let policy = try SafeRoots.currentUser()
@@ -64,12 +67,14 @@ public actor RemovalEngine {
     }
 
     init(policy: SafeRoots, manifest: ManifestStore, operations: RemovalOperations = .live,
-         calculator: SizeCalculator = SizeCalculator(), appActivity: AppActivity = AppActivity()) {
+         calculator: SizeCalculator = SizeCalculator(), appActivity: AppActivity = AppActivity(),
+         applicationActivity: ApplicationProcessActivity = ApplicationProcessActivity()) {
         self.policy = policy
         self.fileSystem = RemovalFileSystem(policy: policy, calculator: calculator)
         self.manifest = manifest
         self.operations = operations
         self.appActivity = appActivity
+        self.applicationActivity = applicationActivity
     }
 
     public func moveToTrash(reviewedFindings: [Finding], ruleSet: RuleSet, appVersion: String,
@@ -248,4 +253,30 @@ private struct Attempt {
 
 private struct JournalFailure: Error {
     let detail: String
+}
+
+extension RemovalEngine {
+    /// Explicitly reviewed app bundles use a separate bounded directory policy
+    /// and authenticated session type. Regular-file cleanup rules remain intact.
+    public func moveApplicationToTrash(reviewedApplication: ApplicationRemovalSelection, appVersion: String,
+                                       now: Date = Date()) throws -> RemovalReport {
+        let appPolicy = ApplicationPolicy.forHome(policy.homeDirectory)
+        return try ApplicationRemovalTransaction(policy: appPolicy, manifest: manifest, operations: operations,
+                                                 calculator: fileSystem.calculator, activity: applicationActivity)
+            .remove(reviewedApplication, appVersion: appVersion, now: now)
+    }
+
+    /// Only application-removal-v1 sessions can enter this app-only undo path.
+    public func restoreApplication(sessionID: UUID) throws -> UndoReport {
+        let appPolicy = ApplicationPolicy.forHome(policy.homeDirectory)
+        return try ApplicationRemovalTransaction(policy: appPolicy, manifest: manifest, operations: operations,
+                                                 calculator: fileSystem.calculator, activity: applicationActivity)
+            .restore(sessionID: sessionID)
+    }
+}
+
+/// Foundation's String-path constructor applies Unicode decomposition on macOS.
+/// Keep the exact reviewed filesystem bytes through the final Trash boundary.
+func removalFileURL(_ path: String, isDirectory: Bool = false) -> URL {
+    path.withCString { URL(fileURLWithFileSystemRepresentation: $0, isDirectory: isDirectory, relativeTo: nil) }
 }

@@ -1,10 +1,10 @@
 # Read-only scanning
 
-Phases 1–3 are accepted and merged. Phase 4 adds producer guards and pure creative grouping in [draft PR 4](https://github.com/iamcaglardogan/racket/pull/4); required checks passed at `8f94aa5`. [TESTING.md](TESTING.md) records the current and historical evidence. The scanner does not move files or create recovery records; [removal and undo](REMOVAL.md) remain separate. Bundled version `1.1.0` has one disabled, unverified Camera Raw candidate. No cleanup rule is enabled, and no live vendor project resolver or product interface is implemented.
+The 0.1.0 local preview has a SwiftUI review interface and three enabled developer rules in bundled document `1.2.0`. Camera Raw remains disabled and unverified, and no live vendor project resolver is implemented. The scanner itself does not move files or create recovery records; [removal and undo](REMOVAL.md) remain separate. [Rule verification](RULE-VERIFICATION.md) records exact enabled scopes and real producer evidence; [TESTING.md](TESTING.md) separates current and historical checks.
 
 ## Scope and output
 
-`ScanEngine` accepts a validated `RuleSet`, uses only enabled and verified rules, and independently checks every declared path against its compiled `SafeRoots` policy before starting a walk. Test-injected rule validators cannot grant the engine broader access. The only compiled roots remain the current user's `Library/Caches` and `Library/Logs`.
+`ScanEngine` accepts a validated `RuleSet`, uses only enabled and verified rules, and independently checks every declared path against its compiled `SafeRoots` policy before starting a walk. Test-injected validators cannot grant broader access. Compiled current-user roots are `Library/Caches`, `Library/Logs`, exact `.npm/_cacache`, and exact `Library/Developer/Xcode/DerivedData/ModuleCache.noindex`. The three enabled rule paths are narrower than this authority; there is no generic cache/log sweep or broad DerivedData cleanup.
 
 `DirectoryWalker` enumerates each rule's `directoryContents` scope. It validates every child against protected-path rules and emits ordinary regular files only. It does not emit directories, approve their unexamined contents, infer project ownership, or choose which files to remove. A finding carries its resolved path, allocated size, modification date, rule ID, module, risk, reason, and regeneration note. It retains the live walk's internal metadata fingerprint and the complete producer set required to be closed for later comparison. `Finding` has no public initializer. Synthetic findings constructed internally by tests lack that observation by default and cannot authorize removal without it. `judgement` findings are ineligible for preselection; eligibility for other risks is not user approval.
 
@@ -56,7 +56,7 @@ Each module gets one task group. Modules run sequentially, while each group sche
 
 Overlapping paths and hard links are deduplicated by exact path bytes and device/inode identity. Module, rule ID, declared path, and file-path ordering determine which eligible explanation wins, independently of task completion order. The visited-entry count can still include repeated observations from overlapping walks.
 
-`reportedAllocatedBytes` adds each retained file's Foundation `totalFileAllocatedSize` using `UInt64` and fails on overflow. It is an observed allocated-size sum, not unique physical storage or a promise of bytes that removal would free. APFS clones may share extents that this identity-based deduplication cannot measure. Sparse files use allocated-size metadata, without a logical-size substitute. Free space and purgeable-space accounting belong to Phase 8.
+`reportedAllocatedBytes` adds each retained file's Foundation `totalFileAllocatedSize` using `UInt64` and fails on overflow. It is an observed allocated-size sum, not unique physical storage or a promise of bytes that removal would free. APFS clones may share extents that this identity-based deduplication cannot measure. Sparse files use allocated-size metadata, without a logical-size substitute. The separate [storage API](STORAGE.md) reports filesystem free space and optional availability estimates without promising purgeable-space reclamation.
 
 ## Verification boundary
 

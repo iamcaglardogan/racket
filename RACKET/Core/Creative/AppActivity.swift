@@ -111,7 +111,16 @@ extension Array where Element == ProducerExecutableIdentity {
         .init(producer: "com.adobe.ame.application.26", executableNames: ["Adobe Media Encoder 2026"],
               executableNamePrefixes: ["Adobe Media Encoder"], applicationNamePrefixes: ["Adobe Media Encoder"]),
         .init(producer: "com.blackmagic-design.DaVinciResolve", executableNames: ["Resolve"],
-              applicationNamePrefixes: ["DaVinci Resolve"])
+              applicationNamePrefixes: ["DaVinci Resolve"]),
+        // Conservative executable matches intentionally block unrelated Ruby,
+        // curl, Node, and compiler jobs too. A missed or renamed executable is
+        // still an observation limit, not a lock against future tool launches.
+        .init(producer: "org.homebrew.brew", executableNames: ["brew", "ruby", "curl"]),
+        .init(producer: "com.npmjs.npm", executableNames: ["node", "nodejs", "npm", "npx"]),
+        .init(producer: "com.apple.dt.Xcode", executableNames: [
+            "Xcode", "xcodebuild", "XCBBuildService", "SWBBuildService", "SourceKitService",
+            "sourcekit-lsp", "swift", "swiftc", "swift-frontend", "clang", "clang++", "clang-cl"
+        ], applicationNamePrefixes: ["Xcode"])
     ]
 }
 

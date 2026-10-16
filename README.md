@@ -1,100 +1,85 @@
 # RACKET
 
-A planned free, open-source, native macOS application for understanding disk usage and reviewing recoverable cleanup, with particular attention to creative work.
+RACKET is a free, MIT-licensed native macOS utility for understanding storage, reviewing selected cache files, and keeping a recorded way back from Trash.
 
-**Status: Phase 4 creative-cache work is in progress in [draft PR 4](https://github.com/iamcaglardogan/racket/pull/4).** Required checks passed at `8f94aa5`; vendor verification and the owner checkpoint remain open. The owner accepted Phase 3, and [pull request 3](https://github.com/iamcaglardogan/racket/pull/3) merged on September 11, 2026, at `aff383d`. The current work adds headless creative grouping, producer-activity checks, and one disabled, unverified Camera Raw cache candidate. No cleanup rule is enabled, no live vendor project resolver is implemented, and product views are not implemented. RACKET lives at [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket) and uses the owner-confirmed identifier `io.github.iamcaglardogan.racket`. Phases 1–3 passed their CI checkpoints and were accepted and merged.
+**Version 0.1.0 is a local preview.** It now has a SwiftUI application, three verified developer-cache categories, reviewed cleanup and recovery, a read-only storage explorer, conservative application management, and scheduled scans. It has no telemetry, accounts, subscriptions, or application network requests.
 
-The compiled path policy currently permits only the current user's `Library/Caches` and `Library/Logs` as rule locations. It refuses the roots themselves as removal candidates and independently checks protected project formats, original-media and autosave names, preferences, cloud-container names, and `.git` paths. Bundled rule-set version `1.1.0` records a candidate at `~/Library/Caches/Adobe Camera Raw 2` with both `verified` and `enabled` set to false. Its presence records a verification task and does not authorize a scan or removal. See [creative-cache evidence and open checks](docs/CREATIVE-CACHE.md).
+The preview is **not Apple Developer ID signed or notarized**. Local packages use ad-hoc signatures and are distinct from a public release. There is no published Homebrew installation command. The exact verification results and package status are recorded in [the October 16 verification report](docs/VERIFICATION-2026-10-16.md).
 
-`PathGuard` walks path components through metadata-only, no-follow descriptors and records file and ancestor identities for revalidation. Phase 2 adds bounded bulk directory enumeration, regular-file findings with rule explanations, dataless metadata gates, allocated-size accounting, and cancellation. Its reported bytes are observations, not a promise of physically reclaimable space. Phase 3 rechecks an explicit reviewed selection against its scan observations and rules before moving individual files. No directory becomes a removal candidate merely because its files were scanned. See the [scanner design](docs/SCANNING.md), [removal and recovery boundaries](docs/REMOVAL.md), and [testing scope and limits](docs/TESTING.md).
+## Build and open
 
-## Product direction
+Requires a full Xcode installation with a Swift 6 toolchain. The deployment target is macOS 14.0; runtime coverage on macOS 14 and Intel remains outstanding. There are no third-party dependencies in the application or core targets.
 
-- macOS 14.0 and later; Swift 6 with strict concurrency and SwiftUI.
-- A main window for review and recovery, plus a reporting-only menu bar item.
-- Creative caches grouped by project where reliable attribution is possible.
-- Initial verification priorities: DaVinci Resolve, After Effects, and Photoshop.
-- A calm, expressive interface with real paths, allocated sizes, readable explanations, and accessible controls.
-- No dependencies in the application target.
-- MIT licensed, with source and rule data available for inspection.
+```sh
+make build CONFIGURATION=Release
+open build/DerivedData/Build/Products/Release/RACKET.app
+```
 
-A shipping CLI is proposed to remain outside v1. The choice between no network access and an optional, default-off GitHub version check remains open. Telemetry is prohibited in either case.
+The build prepares the pinned XcodeGen tool, generates the untracked Xcode project from `project.yml`, and builds both Apple Silicon and Intel slices. Building both slices does not establish runtime testing on both architectures.
 
-## Safety contract
+To create local ZIP/DMG packages:
 
-These are requirements for the implementation, not claims about a tested product. Enforcement tests are tracked in [SAFETY.md](SAFETY.md).
+```sh
+make package
+```
 
-1. **Trash, never unlink.** All removals use `FileManager.trashItem(at:resultingItemURL:)`, exclusively through `RemovalEngine`. No other code, including tests, permanently deletes user content. The only permitted permanent-deletion exception in the brief is an explicit Empty Trash action.
-2. **Allow-list, not deny-list.** Only paths inside compiled, explicitly enumerated safe roots may be removed. Everything else is refused.
-3. **Symlink and TOCTOU resistance.** Resolve and validate paths, reject symlink escapes, and revalidate immediately before moving an item to Trash. Use `O_NOFOLLOW` where possible.
-4. **Never touch dataless files.** Check cloud-placeholder metadata before content access or size collection; report skipped placeholders.
-5. **Preferences are not junk.** Preferences may only be considered in an explicit uninstall of a specific application, never a cache sweep.
-6. **No auto-delete without review.** Scheduled scans do not authorize removal. Standing approvals must identify the exact category and provide a notification and undo. Judgement items are never preselected.
-7. **No telemetry, ever.** No analytics or crash reporting. Any version check must be explicitly opted into, off by default, and permanently disableable.
-8. **Honest numbers only.** Report allocated size, distinguish real free space from purgeable estimates, and never promise RAM boosts or speed improvements.
-9. **No fear.** No health scores, alarm counters, threat meters, or exaggerated findings.
-10. **Auditable by construction.** Every finding points to a readable rule with its reason, regeneration cost, and source.
+Packages go into a fresh directory under `dist/`; existing output is never overwritten. The package includes an ad-hoc signed app, ZIP, DMG, archive checksums, a bundle-content manifest, and an explicit signing-status file. Gatekeeper may refuse a downloaded ad-hoc build. [Distribution documentation](docs/DISTRIBUTION.md) describes verification and the separate credential-gated Developer ID/notarization path.
 
-## Storage and recovery
+## Use the preview
 
-The headless removal engine accepts an explicit selection of up to 256 observed files. It writes an authenticated session record before each move, uses a private staging location inside the existing safe root, then records the actual location returned by macOS Trash. Undo checks the recorded identity and restores to the original path without overwriting an existing item or creating missing parent directories. Missing or uncertain items require review; it never searches for a replacement by filename.
+1. **Scan verified categories.** The scan reports allocated bytes, exact paths, reasons, age boundaries, skipped items and incomplete coverage. It selects and removes nothing.
+2. **Choose files and review every selected path.** Search and category filters can hide selected rows; the confirmation includes the entire selected list. Exclusions keep selected paths out of cleanup.
+3. **Move the reviewed selection to Trash.** Each file is rechecked immediately before mutation. Files that changed or cannot be verified are refused or skipped.
+4. **Use Recovery to review results and restore.** Recovery requires the recorded object to remain verifiable at its recorded location. It never overwrites an existing destination or creates a missing original parent. Emptying Trash can make removal permanent; RACKET does not empty it.
 
-XCTest and local fixtures use synthetic temporary homes and a fake Trash transport with real Darwin moves and journal files. A separate guarded CI integration passed an ordinary-file round trip through actual Foundation Trash and public `UndoService`, using a new synthetic OS account in a disposable GitHub-hosted macOS VM. Real cloud providers remain unverified. The final Foundation pathname operation still has a race window and cannot pin the Trash destination; private directory permissions do not isolate other processes running as the same user. A failed final journal write can leave a moved item without a durable Trash path. These limits are detailed in [REMOVAL.md](docs/REMOVAL.md). Recovery is unavailable once an item is no longer present at a verifiable recovery location; emptying Trash can make that permanent.
+The storage explorer measures a folder you choose and offers drilldown and Reveal in Finder. Its observations grant no cleanup authority. The storage overview distinguishes filesystem free space from storage macOS may estimate as available or purgeable. Moving files into Trash does not promise reclaimed disk space.
 
-Purgeable storage is managed by macOS. It is not guaranteed free space and will not be advertised as space this application can reclaim. A planned storage panel will explain the difference between filesystem free space and Finder's more optimistic figure.
+Application management discovers bundle metadata and can review and move a bounded subset of current-user-owned apps to Trash. System/self apps, other owners, linked or unsafe descendants, running apps and uncertain process states are protected. Common framework symlinks can make an otherwise ordinary app ineligible. Removal covers the reviewed bundle; preferences, licences, documents, related services and leftovers are retained. See [application-management boundaries](docs/APPLICATIONS.md).
 
-An optional Time Machine snapshot must only be described as protection after its creation succeeds. The application will not claim access to Apple's restricted snapshot entitlement.
+Optional daily, three-day or weekly scans run while RACKET is open, including in its menu bar. Missed scans become due after reopening. Optional local notifications announce a review list. **Scheduling never selects or removes files.** Open-at-login uses the normal macOS Login Items control.
 
-## Development checkpoints
+## Enabled cleanup categories
 
-Each phase stops for the owner's review before the next begins:
+Bundled rule document **1.2.0** enables only these default locations:
 
-| Phase | Deliverable | Status |
+| Category | Exact directory | File modification age |
 | --- | --- | --- |
-| 0 | Repository structure, XcodeGen configuration, Makefile, CI, empty buildable targets | Accepted by the owner |
-| 1 | PathGuard tests first, PathGuard, rule model and validation | Verified in CI; accepted by the owner and merged |
-| 2 | Headless scanner and synthetic fixtures | Verified in CI; accepted by the owner and merged |
-| 3 | Manifest, removal, and undo round trip | 226 XCTest cases passed both CI runners; live ordinary-file Trash/undo passed; accepted and merged in PR 3 |
-| 4 | Verified creative rules and project grouping | In progress in draft PR 4: CI passed at `8f94aa5`; grouping and producer guards implemented; one disabled candidate; vendor verification and owner review pending |
-| 5 | Design tokens and reviewed DESIGN.md, then SwiftUI views | Not started |
-| 6 | Permissions, onboarding, and menu bar | Not started |
-| 7 | Uninstaller and orphan finder | Not started |
-| 8 | Developer and system modules, storage and snapshots | Not started |
-| 9 | Signing, notarization, release automation, Homebrew, and screenshots | Not started |
+| Homebrew downloads | `~/Library/Caches/Homebrew/downloads` | More than 120 days |
+| npm package cache | `~/.npm/_cacache` | More than 30 days |
+| Xcode compiler modules | `~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex` | More than 30 days |
 
-## Development
+All three require fresh supported-producer observations. Running or unknown activity blocks the category. Process checks are conservative observations, not locks against future launches. Old modification time does not establish that a file is unused.
 
-The macOS application requires a full Xcode installation with a Swift 6 toolchain and XcodeGen. Command Line Tools alone cannot build the SwiftUI application or run the Xcode test target. There are no third-party dependencies in the application or core target.
+Real Homebrew, npm and Clang producers regenerated disposable cache data in isolated fixtures, and the actual bundled rules passed scanner/removal/undo tests. [Rule verification](docs/RULE-VERIFICATION.md) records versions, primary references, hashes and limits. Clearing caches can slow a later download or build, and offline installs can fail until data is fetched again. Historical/private packages still require their original source and access to remain available.
+
+Adobe Camera Raw remains **disabled and unverified**. Resolve, After Effects, Photoshop and broader creative-cache cleanup are unavailable. The creative page explains those boundaries; project grouping in Core is not a live project-discovery feature. General system-cache and log sweeps, broad DerivedData cleanup, Docker/simulator pruning, snapshots, orphan removal, duplicate finding and a shipping CLI are not implemented.
+
+## Safety and privacy
+
+- Production removal uses the sole Foundation Trash transport in `RemovalEngine`; ordinary cleanup accepts observed individual files, while app bundles use a separate reviewed tree capability.
+- Compiled roots and independent protected-name checks constrain cleanup. Rule JSON cannot add roots or override protections. Preferences, known project/catalog formats, original-media/autosave names and cloud-container names remain protected.
+- Metadata-only no-follow descriptors, identity checks and a synchronous no-materialization policy refuse symlinks, offline placeholders and changed objects. Real cloud-provider behavior remains unverified.
+- Authenticated persistent journals record intent before moves. Recovery uses verified recorded identities and exclusive moves. Same-user interference, Foundation's final pathname race and uncertain final journal writes remain documented limits.
+- No telemetry, crash uploads, health scores, RAM-cleaning or speed-up claims. Source links open the browser only when chosen.
+
+Read [the safety contract](SAFETY.md), [scanner design](docs/SCANNING.md), [removal/recovery limits](docs/REMOVAL.md), and [storage semantics](docs/STORAGE.md).
+
+## Development and verification
 
 ```sh
-make build
 make test
+make core-test
+make check-policy
 ```
 
-These commands generate `RACKET.xcodeproj` from `project.yml` and use the `RACKET` scheme. The generated project is not committed. Development builds do not require an Apple Developer Team ID; distribution signing is deferred to Phase 9.
+`make test` runs the Xcode safety target; `make core-test` runs the headless SwiftPM suite and requires XCTest. `make core-build` supports core compilation with suitable Swift 6 Command Line Tools. Core tests do not validate the product interface or certify a distribution package.
 
-For contributors with Swift 6 Command Line Tools, the headless core can be compiled separately. It uses Apple Foundation, Darwin, and CryptoKit without third-party packages:
+The latest recorded integrated checks passed **345 Core tests** in SwiftPM and Xcode, plus **3 app-flow tests** in Xcode. Final build, UI and archive evidence belongs in [the dated verification report](docs/VERIFICATION-2026-10-16.md); later implementation changes require fresh checks. Earlier Phase 4 CI passed 281 tests in both runners plus a separately guarded ordinary-file Foundation Trash/undo round trip; [testing documentation](docs/TESTING.md) distinguishes that historical evidence from the new preview.
 
-```sh
-make core-build
-```
+The interface uses native controls and accessibility labels, with Command-1 through Command-7 navigation, Command-R scanning and Command-F search. Test-host rendering does not establish pointer/VoiceOver behavior or accessibility compliance; those manual checks remain unverified.
 
-`make core-test` runs the headless XCTest suite and requires a toolchain containing XCTest, such as full Xcode. Command Line Tools installations without XCTest can run `make core-build` only. The historical Phase 3 baseline passed 226 XCTest cases in both runners. [Phase 4 CI run 35216679049](https://github.com/iamcaglardogan/racket/actions/runs/35216679049), at `8f94aa5`, passed 281 cases with zero failures in each of SwiftPM and Xcode, the application build, source-policy checks, and entitlements validation. Its guarded live Foundation Trash/public-undo round trip also passed. XCTest and local fixtures use synthetic paths and a fake Trash transport; they do not scan or mutate the developer’s home or real Trash. The separate CI-only live integration is described in [TESTING.md](docs/TESTING.md); never run its account-setup script locally. Neither path validates a vendor cache or product interface.
+Tests and Debug UI verification use private synthetic homes and fake Trash transports with real namespace moves. No fixture scans or modifies the owner's home, installed apps, caches, real Trash or cloud data. The only live-transport fixture is separately guarded to run under a new synthetic account in a disposable GitHub-hosted macOS VM; never run its account-setup script locally.
 
-`make check-policy` checks selected destructive APIs, Trash calls outside the removal boundary, unapproved networking APIs, and UI imports in the core. CI runs this source check as an additional guardrail; pattern matching is not proof of runtime safety.
+The owner delegated completion of the full flow on October 15, 2026. The earlier phase-by-phase approval stops no longer govern this development run. That authorization does not enable unverified creative rules or supply Apple signing credentials.
 
-[Phase 1 CI run 34125991610](https://github.com/iamcaglardogan/racket/actions/runs/34125991610) passed its 62 tests under both SwiftPM and Xcode, the source checks, and universal app verification. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 tests under both runners, source guardrails, and the universal app build. [Phase 3 PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), at `780a4ad`, passed all 226 XCTest cases under both runners, source guardrails, the universal `arm64`/`x86_64` app build, and entitlements validation. The same run passed the guarded ordinary-file Foundation Trash/public-undo integration. CI uses macOS 15 with Xcode 16.4 and runs both test entry points. The target minimum is macOS 14; a successful macOS 15 CI run does not establish runtime compatibility on macOS 14.
-
-The build downloads XcodeGen 2.46.0 from its official release into ignored `.tools/` storage and verifies the published SHA-256 digest before extraction. This is a development tool, not an application dependency.
-
-`make release` deliberately refuses to create a distribution build until signing, notarization, and packaging are implemented and verified in Phase 9. There is no release, downloadable cleaner, or product screenshot yet. Each release will document its exact Xcode and Swift versions for reproducibility.
-
-## Distribution decisions
-
-The planned distribution is a Developer ID signed and notarized DMG on GitHub Releases, plus a Homebrew cask. Signing credentials are deferred until the owner confirms their Apple Developer membership.
-
-There will be no Mac App Store edition. App sandbox restrictions would prevent the full cross-application cleanup and uninstall workflow; a separate reduced edition would make the safety and capability story harder to understand.
-
-Version 1 deliberately excludes malware scanning, RAM cleaning, speed-up claims, duplicate finding, purgeable-space reclamation, and a privileged helper. Items requiring elevated privileges will be reported and skipped.
-
-See [contribution guidance](CONTRIBUTING.md), [project decisions](docs/DECISIONS.md), [security reporting](SECURITY.md), and the [MIT license](LICENSE).
+See [contribution guidance](CONTRIBUTING.md), [project decisions](docs/DECISIONS.md), [private security reporting](SECURITY.md), and the [MIT license](LICENSE). Repository: [`iamcaglardogan/racket`](https://github.com/iamcaglardogan/racket). Application identifier: `io.github.iamcaglardogan.racket`.

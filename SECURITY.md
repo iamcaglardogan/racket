@@ -10,7 +10,7 @@ If a development build moves an unexpected item, stop that removal session and p
 
 ## Supported versions
 
-There are no releases or distributed builds yet. Phases 1–3 are accepted and merged; [PR 3](https://github.com/iamcaglardogan/racket/pull/3) merged at `aff383d` on September 11, 2026. Phase 4 is in progress in [draft PR 4](https://github.com/iamcaglardogan/racket/pull/4), whose required checks passed at `8f94aa5`. The bundled version `1.1.0` contains one disabled, unverified Camera Raw candidate. No cleanup rule is enabled, and no live vendor project resolver or product interface is implemented. [TESTING.md](docs/TESTING.md) distinguishes current CI evidence from vendor and platform gaps. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
+Version 0.1.0 is a local preview with a SwiftUI review/recovery flow, three narrowly verified developer rules in document `1.2.0`, read-only storage inspection and conservative application-bundle management. Camera Raw/broader creative cleanup remain disabled. Local packages are ad-hoc signed, without Developer ID or Apple notarization; no public Homebrew release is claimed. [The dated verification report](docs/VERIFICATION-2026-10-16.md) and [testing scope](docs/TESTING.md) distinguish current evidence from historical CI and platform gaps. Security reports are welcome; there is no response-time or long-term support guarantee for this preview.
 
 ## Threat model
 
@@ -20,7 +20,7 @@ Phase 1 implements compiled cache/log roots, independent protected-path checks, 
 
 Phase 2 adds bounded directory enumeration, per-child path checks, regular-file findings, and visible skip/refusal/incomplete issues. The synchronous walk disables dataless materialization for its thread, checks descriptor flags and URL cloud metadata before size access, and restores the prior thread policy. Synthetic metadata tests cannot prove that every real cloud provider avoids hydration; that integration remains unverified.
 
-A successful path check or scan finding is an observation, not permission to remove unexamined descendants or a guarantee against all concurrent filesystem changes. Phase 3 revalidates the observation and rule, accepts only resident ordinary files owned by the current non-root user with one link, and moves them through private staging before the single Foundation Trash gateway. A review interface remains future work; the core's explicit selection parameter cannot itself prove human review.
+A successful path check or scan finding is an observation, not permission to remove unexamined descendants or a guarantee against all concurrent filesystem changes. Ordinary removal revalidates rules/observations, accepts only resident current-user-owned single-link files and uses private staging before the single Foundation Trash gateway. SwiftUI now presents explicit selection and full-path confirmation; Core's parameter alone cannot establish human review. Application directories require the separate bounded whole-tree capability and app-specific undo documented in [APPLICATIONS.md](docs/APPLICATIONS.md); they grant no ordinary folder or leftover authority.
 
 Phase 4 binds a guarded finding to its complete required producer set and rejects later rule mismatches. Current-user process observations gate scanning and removal when `requiresClosedApplications` is true; running or uncertain states cannot pass. Executable and bundle-family names are incomplete heuristics, and a producer may launch or exec after a check. Bridge remains unsupported. Pure grouping preserves original findings and supplied provenance without discovering projects or granting removal authority. Default-location confirmations do not verify cache contents or broaden the compiled roots. See [creative-cache evidence](docs/CREATIVE-CACHE.md).
 
@@ -38,8 +38,8 @@ Never ask users to grant Full Disk Access to Terminal or another general-purpose
 
 ## Network and release integrity
 
-Telemetry is prohibited. The product decision about a default-off GitHub update check is pending; no application networking code exists.
+Telemetry is prohibited. The 0.1.0 preview makes no application network requests and implements no update check. An explicitly chosen source link opens the browser.
 
-Signing keys, certificates, API tokens, and notarization credentials do not belong in this repository. CI uses read-only permissions, a commit-pinned checkout action, and a checksum-verified XcodeGen release. GitHub secret scanning, push protection, and private vulnerability reporting are enabled. Main requires the GitHub Actions build/test check on an up-to-date branch, including for administrators, and disallows force pushes and deletion. Release signing and notarization will be configured after the owner supplies the required developer account setup.
+Signing keys, certificates, API tokens and notarization credentials do not belong in this repository. CI uses read-only permissions, a commit-pinned checkout action and checksum-verified XcodeGen. Repository protections should be checked separately before publication. Local packaging checks universal binaries, strict ad-hoc signatures, archive hashes and extracted-bundle manifests. The implemented Developer ID/notarization workflow requires a valid installed identity and existing keychain profile; no successful notarized release is claimed without those credentials and actual Apple acceptance.
 
-The safety contract and its planned enforcement map are in [SAFETY.md](SAFETY.md).
+The safety contract and current enforcement map are in [SAFETY.md](SAFETY.md).

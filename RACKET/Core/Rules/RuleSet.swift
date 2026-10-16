@@ -23,6 +23,26 @@ public struct RuleSet: Equatable, Sendable {
         rules = document.rules
     }
 
+    private init(schemaVersion: Int, version: String, rules: [Rule]) {
+        self.schemaVersion = schemaVersion
+        self.version = version
+        self.rules = rules
+    }
+
+    /// Loads the fixed bundled document using the independent current-user
+    /// path policy. No caller-provided location or network rules are involved.
+    public static func bundled() throws -> RuleSet {
+        let policy = try SafeRoots.currentUser()
+        return try loadBundled { try policy.validateRulePath($0) }
+    }
+
+    /// A subset of an already validated snapshot. This cannot add declarations,
+    /// enable a disabled rule, or alter its version or path authority.
+    public func filtered(modules: Set<Rule.Module>) -> RuleSet {
+        RuleSet(schemaVersion: schemaVersion, version: version,
+                rules: rules.filter { modules.contains($0.module) })
+    }
+
     /// Explicit bytes are useful for CI and review fixtures. The production
     /// entry point is loadBundled; there is no path/URL or network rule loader.
     /// A validator refusal is propagated unchanged for a typed policy error.

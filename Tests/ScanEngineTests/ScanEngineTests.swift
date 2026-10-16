@@ -51,7 +51,7 @@ final class ScanEngineTests: XCTestCase, @unchecked Sendable {
     }
 
     func testDisabledBundledCandidatesProduceAnEmptyReportWithoutWalking() async throws {
-        let set = try RuleSet.loadBundled { _ in }
+        let set = try RuleSet.loadBundled { _ in }.filtered(modules: [.creative])
         let probe = EngineProbe()
         let scanner = try engine { _, _, _ in probe.record(); return Self.walk() }
         let report = try await scanner.scan(ruleSet: set, now: Self.now)

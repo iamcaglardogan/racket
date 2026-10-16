@@ -51,6 +51,24 @@ final class AppActivityTests: XCTestCase {
         XCTAssertEqual(checker(paths: paths).check(producers: [photoshop]), .notObservedRunning)
     }
 
+    func testDeveloperProducersBlockTheirToolsAndConservativeHelpers() {
+        let cases: [(String, [String])] = [
+            ("org.homebrew.brew", ["brew", "ruby", "curl"]),
+            ("com.npmjs.npm", ["node", "nodejs", "npm", "npx"]),
+            ("com.apple.dt.Xcode", ["Xcode", "xcodebuild", "XCBBuildService", "SWBBuildService",
+                                   "SourceKitService", "sourcekit-lsp", "swift", "swiftc", "swift-frontend",
+                                   "clang", "clang++", "clang-cl"])
+        ]
+        for (producer, executables) in cases {
+            for name in executables {
+                XCTAssertEqual(checker(paths: ["/synthetic/tools/" + name]).check(producers: [producer]), .running([producer]))
+            }
+            XCTAssertEqual(checker(paths: ["/synthetic/tools/unrelated-worker"]).check(producers: [producer]), .notObservedRunning)
+        }
+        XCTAssertEqual(checker(paths: ["/synthetic/Xcode Beta.app/Contents/Helpers/Worker"])
+            .check(producers: ["com.apple.dt.Xcode"]), .running(["com.apple.dt.Xcode"]))
+    }
+
     func testResultsAreSortedAndDeduplicatedAcrossProcesses() {
         let checker = checker(paths: [
             "/synthetic/Adobe Photoshop 2026", "/synthetic/Resolve", "/synthetic/Resolve"

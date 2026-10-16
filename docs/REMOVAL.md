@@ -1,6 +1,6 @@
 # Removal and recovery
 
-Phase 3's headless `RemovalEngine`, `ManifestStore`, and `UndoService` are accepted and merged through [PR 3](https://github.com/iamcaglardogan/racket/pull/3) at `aff383d`. Phase 4 adds producer guards in [draft PR 4](https://github.com/iamcaglardogan/racket/pull/4), whose required checks passed at `8f94aa5`; [TESTING.md](TESTING.md) records both checkpoints and the guarded ordinary-file Foundation Trash/public-undo evidence. No cleanup rule is enabled, and no live vendor project resolver or product interface is implemented. XCTest and local fixtures use synthetic homes and an injected fake Trash transport; they do not touch a developer’s home or real Trash.
+The 0.1.0 local preview exposes ordinary reviewed-file cleanup and recovery through SwiftUI, with three enabled developer rules in document `1.2.0`. This document describes the ordinary-file transaction; [application-bundle removal](APPLICATIONS.md) has separate bounded tree authority and app-specific undo. Creative cleanup remains disabled. [TESTING.md](TESTING.md) separates current synthetic checks from historical hosted ordinary-file Foundation Trash evidence. Local fixtures use synthetic homes and injected fake Trash, without touching a developer's home or real Trash.
 
 The engine records intent before changing a file's location, verifies that the file still matches the reviewed scan, and retains evidence when an operation fails. Undo restores only a verified recorded item to its original path. These controls do not establish an atomic Foundation Trash operation or guarantee recovery after every failure.
 
@@ -10,7 +10,7 @@ The engine records intent before changing a file's location, verifies that the f
 
 For each selected file, the engine independently verifies:
 
-- Its current path lies below the compiled Caches or Logs root, satisfies the protected-path policy, and is outside the reserved `.racket-staging` name.
+- Its current path lies below a compiled root (Caches, Logs, exact npm `_cacache`, or exact Xcode `ModuleCache.noindex`), satisfies the protected-path policy, and is outside the reserved `.racket-staging` name. Its enabled rule must independently narrow the admitted selection.
 - The current rule is enabled and verified, still matches the path and depth, and agrees with the finding's module, risk, reason, regeneration note, and retained required producer set. A later rule change cannot silently strip the closed-application guard.
 - If `requiresClosedApplications` is true, a fresh activity observation reports no listed producer observed running. Running or unknown activity cannot proceed.
 - The age condition still holds, and any explicit backup exclusion is honored.
@@ -88,4 +88,4 @@ Private staging narrows the exposed original-name window but does not close the 
 
 The [test plan](TESTING.md) distinguishes the passed XCTest suite’s real Darwin moves and journal files inside synthetic `/private/tmp` homes from its injected fake Trash transport. A separate guarded CI executable passed an ordinary-file round trip through actual Foundation Trash and public `UndoService`, under a new synthetic OS account in a disposable GitHub-hosted macOS VM. It verified the original inode, identical bytes, and five authenticated journal actions through the public current-user APIs. Its UUID and account/UID/GID preflight assumes no concurrent account creation and is not an atomic reservation. Never run the account script locally. No developer’s home, application cache, project, or cloud storage is used as test data. Finder Put Back, genuine cloud placeholders, separate-volume behavior, power-loss durability, and macOS 14 runtime compatibility remain unverified.
 
-The removal boundary supports no directory removal, multi-link cleanup, elevated privileges, helper, snapshots, standing approvals, or product views. Phase 4's single disabled, unverified candidate does not enable cleanup or broaden the compiled roots. Those capabilities cannot be inferred from this headless boundary.
+The ordinary cleanup boundary supports individual files, without directory removal, multi-link cleanup, elevation, a helper, snapshots or standing approvals. The product now supplies explicit review and scan-only scheduling. A separately reviewed `.app` tree can use the dedicated [application transaction](APPLICATIONS.md); this does not authorize arbitrary directories or leftovers. Camera Raw remains disabled. macOS 14/Intel runtime, genuine provider behavior and live app-bundle Foundation integration remain unverified.
