@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import RacketCore
 
@@ -9,7 +10,6 @@ enum RacketStyle {
 struct MainWindow: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.colorScheme) private var scheme
-    @FocusState private var searchFocused: Bool
 
     var body: some View {
         GeometryReader { viewport in
@@ -17,7 +17,6 @@ struct MainWindow: View {
                 .frame(width: viewport.size.width, height: viewport.size.height)
         }
         .tint(scheme == .dark ? Color(red: 0.808, green: 0.537, blue: 0.604) : RacketStyle.accent)
-        .onChange(of: model.searchFocusRequest) { _, _ in searchFocused = true }
         .sheet(isPresented: $model.showOnboarding) { OnboardingView().environmentObject(model) }
         .sheet(isPresented: $model.confirmCleanup) { CleanupConfirmation().environmentObject(model) }
         .sheet(isPresented: $model.confirmApplication) { ApplicationConfirmation().environmentObject(model) }
@@ -92,9 +91,8 @@ struct MainWindow: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     if model.page == .cleanup || model.page == .applications {
-                        TextField("Search names and paths", text: $model.search)
-                            .textFieldStyle(.roundedBorder).frame(width: 240).focused($searchFocused)
-                            .accessibilityLabel("Search names and paths")
+                        ResultSearchField(model: model)
+                            .frame(width: 240, height: 24)
                     }
                 }
                 ToolbarItem {
@@ -259,5 +257,48 @@ struct OnboardingView: View {
                 Button("Get started") { model.finishOnboarding() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
             }
         }.padding(36).frame(width: 580)
+    }
+}
+
+/// An AppKit field keeps the toolbar's real field editor in the window responder
+/// chain. SwiftUI FocusState does not reliably focus toolbar-hosted text fields.
+struct ResultSearchField: NSViewRepresentable {
+    @ObservedObject var model: AppModel
+
+    func makeCoordinator() -> Coordinator { Coordinator(model: model) }
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let field = NSSearchField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.placeholderString = "Search names and paths"
+        field.setAccessibilityLabel("Search names and paths")
+        field.sendsSearchStringImmediately = true
+        field.sendsWholeSearchString = false
+        field.delegate = context.coordinator
+        field.target = context.coordinator
+        field.action = #selector(Coordinator.searchChanged(_:))
+        model.registerSearchControl(field)
+        return field
+    }
+
+    func updateNSView(_ field: NSSearchField, context: Context) {
+        if field.stringValue != model.search { field.stringValue = model.search }
+        // Registration and value updates never change focus. Find is the sole
+        // explicit focus event, routed to this control's current key window.
+        model.registerSearchControl(field)
+    }
+
+    static func dismantleNSView(_ field: NSSearchField, coordinator: Coordinator) {
+        coordinator.model.unregisterSearchControl(field)
+    }
+
+    @MainActor final class Coordinator: NSObject, NSSearchFieldDelegate {
+        let model: AppModel
+        init(model: AppModel) { self.model = model }
+        @objc func searchChanged(_ sender: NSSearchField) {
+            if model.search != sender.stringValue { model.search = sender.stringValue }
+        }
+        func controlTextDidChange(_ notification: Notification) {
+            if let field = notification.object as? NSSearchField { searchChanged(field) }
+        }
     }
 }

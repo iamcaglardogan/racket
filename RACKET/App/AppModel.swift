@@ -62,7 +62,6 @@ final class AppModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var notice: String?
     @Published var search = ""
-    @Published private(set) var searchFocusRequest: UInt64 = 0
     @Published var moduleFilter = "all"
     @Published var selected = Set<Data>()
     @Published var confirmCleanup = false
@@ -91,6 +90,7 @@ final class AppModel: ObservableObject {
     private var timer: AnyCancellable?
     private var inventory: ApplicationInventory?
     private var started = false
+    private let searchControls = NSHashTable<NSSearchField>.weakObjects()
 
     init() {
         #if DEBUG
@@ -115,9 +115,20 @@ final class AppModel: ObservableObject {
 
     var canFocusSearch: Bool { page == .cleanup || page == .applications }
 
-    func requestSearchFocus() {
-        guard canFocusSearch else { return }
-        searchFocusRequest &+= 1
+    func registerSearchControl(_ field: NSSearchField) { searchControls.add(field) }
+    func unregisterSearchControl(_ field: NSSearchField) { searchControls.remove(field) }
+
+    func requestSearchFocus() { focusSearch(in: NSApp.keyWindow) }
+
+    /// The command always passes the actual key window. Keeping the responder
+    /// operation separate permits native-control tests in a host without OS focus.
+    func focusSearch(in window: NSWindow?) {
+        guard canFocusSearch, let window,
+              let field = searchControls.allObjects.first(where: {
+                  $0.window === window && !$0.isHiddenOrHasHiddenAncestor
+              }) else { return }
+        window.makeFirstResponder(field)
+        field.selectText(nil)
     }
 
     var rows: [FindingRow] {

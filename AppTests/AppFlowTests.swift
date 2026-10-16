@@ -165,6 +165,105 @@ final class AppFlowTests: XCTestCase {
         }
     }
 
+    func testFindFocusesNativeToolbarEditorAfterBlurAndPageRecreation() async throws {
+        let model = AppModel(); model.start(); try await idle(model)
+        model.scan(); try await idle(model)
+        XCTAssertEqual(model.rows.count, 4)
+        let host = NSHostingView(rootView: MainWindow().environmentObject(model).frame(width: 1140, height: 780))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1140, height: 780),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        defer { window.orderOut(nil) }
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        try await Task.sleep(for: .milliseconds(300))
+        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+        func field() throws -> NSSearchField {
+            let root = window.contentView?.superview ?? host
+            return try XCTUnwrap(descendants(root).compactMap { $0 as? NSSearchField }.first {
+                $0.window === window && !$0.isHiddenOrHasHiddenAncestor && $0.accessibilityLabel() == "Search names and paths"
+            })
+        }
+        let search = try field()
+        model.focusSearch(in: window)
+        let editor = try XCTUnwrap(search.currentEditor() as? NSTextView)
+        XCTAssertTrue(window.firstResponder === editor)
+        editor.insertText("Thumbnail", replacementRange: editor.selectedRange())
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(model.search, "Thumbnail")
+        XCTAssertEqual(model.rows.count, 1, "Native editor input must reach the actual finding filter")
+        window.makeFirstResponder(nil)
+        model.notice = "A state update must not recapture search focus"
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertFalse(window.firstResponder === search.currentEditor())
+        model.focusSearch(in: window)
+        let repeatedEditor = try XCTUnwrap(search.currentEditor() as? NSTextView)
+        XCTAssertTrue(window.firstResponder === repeatedEditor)
+        XCTAssertEqual(repeatedEditor.selectedRange(), NSRange(location: 0, length: "Thumbnail".utf16.count))
+        model.loadApplications(); try await idle(model)
+        model.page = .applications
+        model.search = ""
+        try await Task.sleep(for: .milliseconds(300))
+        let appSearch = try field()
+        model.focusSearch(in: window)
+        let appEditor = try XCTUnwrap(appSearch.currentEditor() as? NSTextView)
+        XCTAssertTrue(window.firstResponder === appEditor)
+        appEditor.insertText("Sample", replacementRange: appEditor.selectedRange())
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(model.search, "Sample")
+        model.page = .overview
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertFalse(model.canFocusSearch)
+        model.page = .applications
+        try await Task.sleep(for: .milliseconds(300))
+        let recreated = try field()
+        model.focusSearch(in: window)
+        XCTAssertTrue(window.firstResponder === recreated.currentEditor())
+    }
+
+    func testFindRoutesOnlyToTheSelectedNativeWindowAndPreservesUnicodeBinding() async throws {
+        let model = AppModel(); model.start(); try await idle(model)
+        model.page = .cleanup
+        let firstHost = NSHostingView(rootView: ResultSearchField(model: model).frame(width: 240, height: 24))
+        let firstWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 80),
+                                   styleMask: [.titled], backing: .buffered, defer: false)
+        let secondHost = NSHostingView(rootView: ResultSearchField(model: model).frame(width: 240, height: 24))
+        let secondWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 80),
+                                    styleMask: [.titled], backing: .buffered, defer: false)
+        defer { firstWindow.orderOut(nil); secondWindow.orderOut(nil) }
+        firstWindow.contentView = firstHost; secondWindow.contentView = secondHost
+        firstWindow.makeKeyAndOrderFront(nil); secondWindow.makeKeyAndOrderFront(nil)
+        try await Task.sleep(for: .milliseconds(200))
+        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+        let first = try XCTUnwrap(descendants(firstHost).compactMap { $0 as? NSSearchField }.first)
+        let second = try XCTUnwrap(descendants(secondHost).compactMap { $0 as? NSSearchField }.first)
+        model.focusSearch(in: secondWindow)
+        let editor = try XCTUnwrap(second.currentEditor() as? NSTextView)
+        XCTAssertTrue(secondWindow.firstResponder === editor)
+        XCTAssertNil(first.currentEditor())
+        let query = "\u{0130}stanbul Cafe\u{301}"
+        editor.insertText(query, replacementRange: editor.selectedRange())
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(Data(model.search.utf8), Data(query.utf8))
+        XCTAssertEqual(Data(first.stringValue.utf8), Data(query.utf8))
+        XCTAssertEqual(Data(second.stringValue.utf8), Data(query.utf8))
+        firstWindow.makeKeyAndOrderFront(nil)
+        model.focusSearch(in: firstWindow)
+        XCTAssertTrue(firstWindow.firstResponder === first.currentEditor())
+        firstWindow.makeFirstResponder(nil)
+        model.search = ""
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(first.stringValue, "")
+        XCTAssertEqual(second.stringValue, "")
+        XCTAssertNil(first.currentEditor(), "Clearing a binding must not recapture focus")
+        let unrelated = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 100, height: 80),
+                                 styleMask: [.titled], backing: .buffered, defer: false)
+        defer { unrelated.orderOut(nil) }
+        unrelated.contentView = NSView()
+        let previousResponder = unrelated.firstResponder
+        model.focusSearch(in: unrelated)
+        XCTAssertTrue(unrelated.firstResponder === previousResponder, "A window without a registered search field must be untouched")
+    }
+
     private struct OwnAccessibilityContent {
         let text: String
         let role: String
