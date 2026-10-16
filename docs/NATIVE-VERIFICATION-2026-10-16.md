@@ -12,9 +12,21 @@ This is a manual computer-use verification of the real SwiftUI application windo
 - Command-1 returned to Overview; Command-R started the synthetic scan. Settings exposed appearance, menu bar, scan-only scheduling, exclusions and local privacy information. Login and permission-changing controls were disabled in this fixture mode.
 - Native accessibility observations exposed button, checkbox, disclosure, text-field and progress-indicator roles, selected navigation values and complete review paths. This was not a VoiceOver speech test or a conformance audit.
 
-## Final keyboard check
+## Native search defect and verified correction
 
-The hidden toolbar Command-F control was replaced with a standard Edit → Find in Results command and a focus request. App tests pass with this implementation. During the final native check, the computer-use service reported that the Mac had locked and automatic unlock had failed. Manual unlock was requested. Until an unlocked repeat confirms typing reaches the search field, Command-F remains pending native verification; no success is inferred from the menu entry alone.
+The initial keyboard check was interrupted when the Mac locked. After the owner unlocked it, source `30e92c7` exposed a real defect: both Command-F and Edit → Find in Results left focus on the window; typing `Thumbnail` left all four cleanup rows unchanged. Direct field-click typing worked. The later native correction uses `NSSearchField` with key-window focus dispatch rather than assuming a SwiftUI focus state reaches the toolbar editor.
+
+At runtime source **`4ccfa684597f48b3352d1919d0c202dba6a2b401`**, actual keyboard/menu input in isolated workspace **`/private/tmp/RACKET-UI-A56306B2-BE47-45CC-86D0-CFE66F21ADD2`** verified:
+
+1. Command-R produced four synthetic files. Command-F followed by `Thumbnail` focused the native search field and left one visible Thumbnail result, displaying 66 KB allocated.
+2. Command-1 then Command-2 recreated the toolbar. Command-F followed by `Render` replaced the previous query, retained native editor focus and showed one matching file.
+3. Command-5, Read Applications, Command-F and `Sample` showed the one Sample Tool. Clicking Edit → Find in Results and typing `Missing` replaced `Sample`, retained focus and showed zero apps.
+4. Returning with Command-2, Command-F and Backspace cleared the query and restored all four files with **zero selected**.
+5. A final Command-F/`Thumbnail` repeat again focused the native field and showed one matching row; the screenshot is preserved inline in the development conversation.
+
+All **7 app-flow tests passed**, including regression checks for focus after blur/toolbar recreation and routing only to the selected native window while retaining Unicode binding. Log: `/private/tmp/RACKET-NativeSearchFinalAppFlowTests.log`; result bundle: `/private/tmp/racket-product-tests/Logs/Test/Test-RACKET-2026.10.16_10-10-34-+0300.xcresult`.
+
+These observations verify the actual shortcut/menu focus and filtering paths above. They do not establish full keyboard navigation, VoiceOver behavior or accessibility conformance. The promoted source-matched `4ccfa68` archive and successful hosted attempts are recorded separately in the [dated verification report](VERIFICATION-2026-10-16.md), including the parallel run's preserved read-only activity refusal before its successful retry. Older `30e92c7` package receipts are not attributed to the corrected runtime.
 
 ## Evidence boundaries
 
