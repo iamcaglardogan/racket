@@ -32,7 +32,7 @@ final class PathGuardTests: XCTestCase {
 
     func testSafeRootsAreRuleLocationsButNeverCandidates() throws {
         let fixture = try GuardFixture()
-        for root in [fixture.caches, fixture.logs] {
+        for root in fixture.policy.paths {
             try fixture.policy.validateRulePath(root)
             XCTAssertThrowsError(try fixture.guardrail.validate(root)) { error in
                 guard case PathGuardError.safeRoot = error else {
@@ -40,6 +40,43 @@ final class PathGuardTests: XCTestCase {
                 }
             }
             assertRejected { _ = try fixture.policy.validateCandidate(root + "/./") }
+        }
+    }
+
+    func testDeveloperRootsAcceptOnlyExactGeneratedCacheSubtrees() throws {
+        let fixture = try GuardFixture()
+        for relative in [
+            ".npm/_cacache/content-v2/sha512/aa/bb/cache",
+            "Library/Developer/Xcode/DerivedData/ModuleCache.noindex/target/Module.pcm"
+        ] {
+            let file = try fixture.file(relative)
+            XCTAssertEqual(try fixture.guardrail.validate(file).resolvedPath, file)
+        }
+        for relative in [
+            ".npm/_npx/package/source.js", ".npmrc", ".npm/_cacache-backup/file",
+            ".npm/_CACACHE/file", ".npm/_cacaché/file", ".npm/node_modules/package/index.js",
+            "Library/Developer/Xcode/DerivedData/Project/SourcePackages/checkouts/library/source.swift",
+            "Library/Developer/Xcode/DerivedData/ModuleCache.noindexBackup/file",
+            "Library/Developer/Xcode/DerivedData/ModuleCache.noindex.old/file",
+            "Library/Developer/Xcode/Archives/valuable.xcarchive/file",
+            "Library/Developer/Xcode/UserData/valuable.plist"
+        ] {
+            let file = try fixture.file(relative)
+            assertRejected { _ = try fixture.guardrail.validate(file) }
+            assertRejected { try fixture.policy.validateRulePath(file) }
+        }
+    }
+
+    func testDeveloperRootsPreserveProtectedDescendantsAndRefuseSymlinks() throws {
+        let fixture = try GuardFixture()
+        for root in [".npm/_cacache", "Library/Developer/Xcode/DerivedData/ModuleCache.noindex"] {
+            let protected = try fixture.file(root + "/nested/.git/objects/valuable")
+            assertRejected { _ = try fixture.guardrail.validate(protected) }
+            let source = try fixture.file("Documents/" + UUID().uuidString)
+            let link = fixture.home + "/" + root + "/shortcut"
+            try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: source)
+            assertSymlinkRejected { _ = try fixture.guardrail.validate(link) }
+            assertRejected { try fixture.policy.validateRulePath("~/" + root + "/../valuable") }
         }
     }
 
@@ -161,7 +198,7 @@ final class PathGuardTests: XCTestCase {
     func testTenThousandGeneratedPathsCannotExpandAuthority() throws {
         let fixture = try GuardFixture()
         var generator = DeterministicGenerator(state: 0x5241434B4554)
-        let roots = [fixture.caches, fixture.logs, fixture.home + "/Library/Preferences", fixture.caches + "Extra", "/", "relative", "~/Library/Caches"]
+        let roots = fixture.policy.paths + [fixture.home + "/Library/Preferences", fixture.caches + "Extra", "/", "relative", "~/Library/Caches"]
         let pieces = ["vendor", "cache.bin", "..", ".", "", ".git", "Original Media", "Mobile Documents", "project.drp", "caf\u{00E9}", "cafe\u{0301}", "\0", "\n", "..suffix"]
         var accepted = 0
         var rejected = 0
@@ -173,7 +210,7 @@ final class PathGuardTests: XCTestCase {
             do {
                 let candidate = try fixture.policy.validateCandidate(path)
                 accepted += 1
-                XCTAssertTrue(rawDescendant(candidate, of: fixture.caches) || rawDescendant(candidate, of: fixture.logs), "Escaped authority at case \(index)")
+                XCTAssertTrue(fixture.policy.paths.contains { rawDescendant(candidate, of: $0) }, "Escaped authority at case \(index)")
                 XCTAssertFalse(candidate.split(separator: "/").contains(".."))
                 XCTAssertFalse(candidate.utf8.contains(0))
             } catch is PathGuardError {

@@ -1,51 +1,42 @@
 # Changelog
 
-All notable changes will be documented here using the Keep a Changelog format.
-There are no releases yet.
+Changes are grouped by preview/release. A local preview is not a published, Apple-notarized release.
 
-## [Unreleased]
+## [0.1.0] — Local preview, 2026-10-16
 
 ### Added
 
-- Initial project documentation for El Chedo Production's planned macOS cleaner.
-- Ten-point safety contract with an enforcement map distinguishing implemented controls from future requirements.
-- Private security-reporting guidance and a security contact link in the issue chooser.
-- MIT license and ignores for generated files, signing material, and private runtime data.
-- Phase 0 contributor guidance and public bug/feature templates, with data-loss reports routed privately.
-- Empty SwiftUI app, Foundation-only core framework, XCTest target, and Swift package.
-- XcodeGen 2.46.0 configuration and verified build-tool download, build commands, and macOS CI.
-- Read-only PathGuard with metadata-only no-follow traversal, flags-before-stat checks, and item/ancestor identity receipts for revalidation.
-- Compiled Caches/Logs roots with protected-path checks and refusal of the roots themselves as removal candidates.
-- Versioned rule schema and fixed bundled loader, with strict fields, duplicate JSON-key rejection, bounded matching, required explanations/citations, and disabled unverified rules.
-- Empty schema-1 rule document; no cache path is enabled or claimed verified.
-- 31 PathGuard tests, including 10,000 generated adversarial paths, and 31 rule-validation tests using synthetic data.
-- CI source-policy guardrails for selected destructive/networking APIs, misplaced Trash calls, and UI imports in the core.
-- Testing documentation that records unverified dataless hydration, live mount transitions, directory-descendant safety, and the remaining Trash race.
-- Phase 2 read-only bulk directory walker, dataless metadata gates and per-thread materialization policy, with regular-file findings and visible skip/refusal/incomplete reasons.
-- Bounded scan orchestration, cancellation, per-module path progress, age/explicit backup filters, deterministic overlap and hard-link deduplication, and checked `UInt64` allocated-size totals.
-- Scanner architecture and verification notes separating allocated observations from reclaimable physical space, and synthetic metadata checks from cloud-provider integration.
-- 84 additional tests; the 146-test suite passed in SwiftPM and Xcode, alongside universal build and source guardrails.
-- Phase 3 headless removal for explicit reviewed selections of observed, owned single-link files, with independent rule checks and private staging inside the existing safe roots.
-- Authenticated NDJSON session records with app/rule-set versions, pre-move intent, resulting paths, bounded parsing, private key storage, cross-instance locks, and synchronized writes.
-- Undo from verified Trash or staging locations, with exclusive moves, destination-conflict refusal, interrupted-operation handling, and a stop on journal failure.
-- Synthetic scan-observation, manifest, removal, and undo cases using real temporary filesystem operations and a fake Trash transport; [PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad` passed all 226 XCTest cases in SwiftPM and Xcode, source guardrails, the universal build, and entitlements validation.
-- A guarded CI-only live Foundation Trash/undo fixture using public Core APIs under a new synthetic OS account in a disposable GitHub-hosted macOS VM; the same CI run passed the ordinary-file round trip with its original inode, identical bytes, and five authenticated journal actions.
-- Removal and recovery documentation covering the final Foundation pathname race, local authentication limits, uncertain outcomes, and unverified platform integration.
+- Native SwiftUI overview, cleanup review, creative status, storage explorer, application inventory, recovery and settings views, plus onboarding and an optional menu bar item.
+- Explicit file selection, search/category filters, full-path cleanup confirmation, exclusions and visible skipped/incomplete scan details.
+- Three enabled developer rules in bundled document 1.2.0: Homebrew downloads older than 120 days, npm's exact `_cacache` older than 30 days, and Xcode's exact `ModuleCache.noindex` older than 30 days. All require fresh producer observations.
+- Real isolated npm, Homebrew and Clang regeneration evidence, with preserved fixtures, recorded hashes and a replayable harness. No owner's cache was cleaned to establish this evidence.
+- Two narrow compiled cache roots, adversarial boundary coverage, and integration checks for actual bundled-rule scan → reviewed fixture Trash → authenticated undo.
+- Read-only filesystem capacity reporting and bounded folder exploration, with allocation semantics, drilldown, visible partial coverage and Reveal in Finder.
+- Conservative application-bundle inventory, explicit whole-tree removal review, app-specific authenticated sessions and app undo. Linked/shared/unsupported bundles, other owners, system/self apps and uncertain/running process states are refused.
+- Optional daily, three-day and weekly **scan-only** scheduling while the app is open, local review notifications and the standard macOS open-at-login control.
+- Debug-only isolated product verification workspace. Release packaging rejects inclusion of its fixture entry point and synthetic rule.
+- Local ad-hoc packaging and verification for universal app/ZIP/DMG output, archive SHA-256 checksums, extracted-bundle content manifests and explicit signing status.
+- A separate Developer ID/notarization workflow that requires real installed signing credentials, plus an unreleased Homebrew cask template. No public release or working cask install command is claimed.
 
 ### Changed
 
-- Selected **RACKET** as the product name and updated the repository links for `iamcaglardogan/racket`.
-- Confirmed `io.github.iamcaglardogan.racket` as the application identifier.
-- Documented the Phase 0 build commands, local Xcode limitation, and separation between core checks and application validation.
-- Recorded owner acceptance of Phase 0 and prepared the Phase 1 trust-core checkpoint for separate pull-request review.
-- Recorded owner acceptance and merging of Phases 1 and 2 through pull requests [1](https://github.com/iamcaglardogan/racket/pull/1) and [2](https://github.com/iamcaglardogan/racket/pull/2), and authorization to develop Phase 3.
-- Scanner findings now retain their internal metadata fingerprint for removal-time comparison; `.racket-staging` is reserved from rule paths and findings.
+- Product status now reflects a usable local preview instead of an empty app target. Feature and safety documentation distinguishes actual capabilities from deferred work.
+- `RuleSet.bundled()` applies the current-user compiled policy; `filtered(modules:)` can only narrow an already validated document.
+- Ordinary file cleanup and reviewed application-directory removal have separate authority and undo paths. No general directory-cleanup capability was added.
+- The owner's October 15 full-flow delegation supersedes earlier phase approval stops for this development run. Verification, safety boundaries and credential requirements remain in force.
 
-### Fixed
+### Verification and limits
 
-- Scanner hard-link observations now bind to verified parent entries and fresh no-follow identities, rather than assuming a regular inode has one reverse-resolved path. Added name-cache and ordinary-file substitution regressions.
+- Recorded integrated checks passed 345 Core tests in SwiftPM/Xcode and 3 Xcode app-flow tests; focused rule/path/producer/integration checks earlier passed 94 tests. Final build, UI and package evidence is recorded in [VERIFICATION-2026-10-16.md](docs/VERIFICATION-2026-10-16.md).
+- Camera Raw remains disabled and unverified. Broader creative caches, live project resolution, general system/log sweeps, exhaustive app leftovers, snapshots and a shipping CLI are unavailable.
+- No valid Developer ID identity is available in the implementation environment. Local packages are ad-hoc signed and not Apple notarized; publication and Homebrew distribution remain unavailable.
+- macOS 14 runtime, Intel runtime, genuine cloud-provider behavior and live application-bundle Foundation Trash integration remain separately unverified. Building universal slices does not establish runtime coverage.
 
-### Pending
+## Historical foundation — through 2026-09-17
 
-- Phase 3 owner checkpoint review in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3). Phase 4 has not begun.
-- Owner confirmation of shipping CLI scope and final network policy.
+- Established the MIT-licensed RACKET identity, `io.github.iamcaglardogan.racket`, XcodeGen project, SwiftPM core, CI and ten-point safety contract.
+- Added strict declarative rule validation, duplicate-key rejection, compiled Caches/Logs policy, metadata-only no-follow `PathGuard`, and 10,000 generated adversarial paths.
+- Added bounded bulk scanning, dataless gates, materialization-policy restoration, observed allocated-size accounting, age/backup filters, deterministic overlap/hard-link deduplication and cancellation.
+- Added serial reviewed-file removal, private staging, authenticated persistent journals, failure-state handling and exclusive no-overwrite undo.
+- Added pure creative grouping and retained producer guards; Camera Raw was recorded as a disabled candidate in document 1.1.0.
+- Historical CI passed 62 tests in Phase 1, 146 in Phase 2, 226 in Phase 3 and 281 in Phase 4, in both SwiftPM and Xcode. Phases 1–3 were accepted and merged. Phase 4's ordinary-file live Foundation Trash/public-undo round trip also passed on a disposable hosted VM. These results do not validate later preview changes; source references are retained in [TESTING.md](docs/TESTING.md).

@@ -4,6 +4,7 @@ import Foundation
 enum RemovalSafetyError: Error, Equatable, Sendable {
     case invalidSelection, changed, unsupported, ownership, multipleLinks
     case conflict, missing, unsafeRecoveryLocation, invalidHistory
+    case producerRunning, producerActivityUnknown
     case system(Int32)
 }
 
@@ -274,6 +275,8 @@ func removalExplanation(_ error: any Error) -> String {
     case RemovalSafetyError.multipleLinks: "The item has multiple hard links. This removal phase supports one-link files only."
     case ScanMetadataError.dataless, PathGuardError.dataless: "The item is an offline placeholder. Leave it to its cloud provider."
     case ScanMetadataError.excludedFromBackup: "The rule excludes this item because it is excluded from backup."
+    case RemovalSafetyError.producerRunning: "A producing application was observed running. Close it and scan again before reviewing cleanup."
+    case RemovalSafetyError.producerActivityUnknown: "Producing application activity could not be verified. No cleanup is allowed while that status is unknown."
     case let error as PathGuardError: error.localizedDescription
     default: "The item or its recovery record could not be verified. Preserve its recorded locations and review it again."
     }

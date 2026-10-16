@@ -64,15 +64,82 @@ final class RuleSetTests: XCTestCase {
         XCTAssertEqual(result.enabledRules, result.rules)
     }
 
-    func testShippedRuleDocumentIsVersionedAndHasNoEnabledOrUnverifiedCacheClaims() throws {
+    func testShippedCreativeCandidateRemainsDisabledUntilVerified() throws {
         let policy = try SafeRoots(homeDirectory: Self.fixtureHome)
         let result = try RuleSet.loadBundled { path in
             try policy.validateRulePath(path)
         }
         XCTAssertEqual(result.schemaVersion, RuleSet.supportedSchemaVersion)
-        XCTAssertEqual(result.version, "1.0.0")
-        XCTAssertTrue(result.rules.isEmpty)
-        XCTAssertTrue(result.enabledRules.isEmpty)
+        XCTAssertEqual(result.version, "1.2.0")
+        let creative = result.filtered(modules: [.creative])
+        XCTAssertEqual(creative.rules.map(\.id), ["adobe.camera-raw-cache-2"])
+        XCTAssertTrue(creative.rules.allSatisfy { !$0.verified && !$0.enabled && $0.requiresClosedApplications })
+        XCTAssertEqual(creative.rules.first?.paths, ["~/Library/Caches/Adobe Camera Raw 2"])
+        XCTAssertTrue(creative.enabledRules.isEmpty)
+        XCTAssertEqual(CreativeCacheCatalog.ruleMappings.map(\.ruleID), creative.rules.map(\.id))
+        XCTAssertEqual(Set(CreativeCacheCatalog.ruleMappings[0].producerIDs), Set(creative.rules[0].producers))
+        XCTAssertEqual(CreativeCacheCatalog.ruleMappings[0].scope, .applicationWide)
+    }
+
+    func testBundledDeveloperRulesHaveNarrowAuditableScopeAndFreshProducerGuards() throws {
+        let policy = try SafeRoots(homeDirectory: Self.fixtureHome)
+        let result = try RuleSet.loadBundled(validatePath: policy.validateRulePath)
+        let developer = result.filtered(modules: [.developer])
+        XCTAssertEqual(developer.schemaVersion, result.schemaVersion)
+        XCTAssertEqual(developer.version, result.version)
+        XCTAssertEqual(Set(developer.enabledRules.map(\.id)), [
+            "developer.homebrew-downloads", "developer.npm-content-cache", "developer.xcode-module-cache"
+        ])
+        XCTAssertEqual(Set(developer.enabledRules.flatMap(\.paths)), [
+            "~/Library/Caches/Homebrew/downloads", "~/.npm/_cacache",
+            "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex"
+        ])
+        for rule in developer.enabledRules {
+            XCTAssertTrue(rule.verified)
+            XCTAssertTrue(rule.requiresClosedApplications)
+            XCTAssertEqual(rule.risk, .regenerable)
+            XCTAssertEqual(rule.conditions.count, 1)
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(rule.conditions.first?.olderThanDays), 30)
+            let checker = AppActivity(snapshot: { [AppActivityProcess(executablePath: "/synthetic/fixture-runner")] })
+            XCTAssertEqual(checker.check(producers: rule.producers), .notObservedRunning)
+        }
+    }
+
+    func testModuleFilteringOnlyNarrowsAlreadyValidatedRules() throws {
+        let source = try decode(document(rules: [rule(), rule(id: "disabled.cache", verified: false, enabled: false)]))
+        XCTAssertEqual(source.filtered(modules: [.creative]), source)
+        let empty = source.filtered(modules: [.system, .developer])
+        XCTAssertTrue(empty.rules.isEmpty)
+        XCTAssertEqual(empty.version, source.version)
+        XCTAssertEqual(empty.schemaVersion, source.schemaVersion)
+        XCTAssertFalse(source.filtered(modules: [.creative]).rules[1].enabled)
+        XCTAssertTrue(source.filtered(modules: []).rules.isEmpty)
+    }
+
+    func testRuleIdentifiersAcceptExactlyTheASCIISchemaAlphabet() throws {
+        let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+        let permitted = Set(alphabet.utf8)
+        XCTAssertEqual(try decode(document(rules: [rule(id: alphabet)])).rules.first?.id, alphabet)
+        for byte in UInt8(0)...UInt8(127) {
+            let id = "fixture" + String(decoding: [byte], as: UTF8.self) + "cache"
+            if permitted.contains(byte) {
+                XCTAssertEqual(try decode(document(rules: [rule(id: id)])).rules.first?.id, id)
+            } else {
+                XCTAssertThrowsError(try decode(document(rules: [rule(id: id)])), "ASCII byte \(byte) must be refused") { error in
+                    guard case RuleValidationError.invalidField("id", _) = error else {
+                        return XCTFail("Expected ID grammar refusal for byte \(byte); received \(error)")
+                    }
+                }
+            }
+        }
+    }
+
+    func testRuleIdentifierUnicodeAndLengthBoundariesRemainStrict() throws {
+        let longest = String(repeating: "a", count: 256)
+        XCTAssertEqual(try decode(document(rules: [rule(id: longest)])).rules.first?.id, longest)
+        for id in ["", longest + "a", "café", "cafe\u{0301}", "日本語", "fixture\u{FF0F}cache", "ＡＢＣ", "fixture\u{200B}cache"] {
+            XCTAssertThrowsError(try decode(document(rules: [rule(id: id)])), "Invalid identifier must remain refused")
+        }
     }
 
     func testMissingEnableAndVerificationFlagsDefaultToDisabled() throws {

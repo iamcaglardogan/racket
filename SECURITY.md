@@ -10,7 +10,7 @@ If a development build moves an unexpected item, stop that removal session and p
 
 ## Supported versions
 
-There are no releases or distributed builds yet. Phases 1 and 2 are merged; their 146-test suite and universal build passed CI. Phase 3 adds headless removal, authenticated session records, and undo. [PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), at `780a4ad`, passed 226 XCTest cases in both runners, source guardrails, the universal build, and entitlements validation. The same run passed the guarded ordinary-file Foundation Trash/public-undo integration. The owner’s checkpoint review in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3) remains pending; Phase 4 has not begun. The bundled rule document remains empty, and there is no product interface. Security reports about the evolving design are welcome. Release support and patch policy will be documented before distribution.
+Version 0.1.0 is a local preview with a SwiftUI review/recovery flow, three narrowly verified developer rules in document `1.2.0`, read-only storage inspection and conservative application-bundle management. Camera Raw/broader creative cleanup remain disabled. Local packages are ad-hoc signed, without Developer ID or Apple notarization; no public Homebrew release is claimed. [The dated verification report](docs/VERIFICATION-2026-10-16.md) and [testing scope](docs/TESTING.md) distinguish current evidence from historical CI and platform gaps. Security reports are welcome; there is no response-time or long-term support guarantee for this preview.
 
 ## Threat model
 
@@ -20,7 +20,9 @@ Phase 1 implements compiled cache/log roots, independent protected-path checks, 
 
 Phase 2 adds bounded directory enumeration, per-child path checks, regular-file findings, and visible skip/refusal/incomplete issues. The synchronous walk disables dataless materialization for its thread, checks descriptor flags and URL cloud metadata before size access, and restores the prior thread policy. Synthetic metadata tests cannot prove that every real cloud provider avoids hydration; that integration remains unverified.
 
-A successful path check or scan finding is an observation, not permission to remove unexamined descendants or a guarantee against all concurrent filesystem changes. Phase 3 revalidates the observation and rule, accepts only resident ordinary files owned by the current non-root user with one link, and moves them through private staging before the single Foundation Trash gateway. A review interface remains future work; the core's explicit selection parameter cannot itself prove human review.
+A successful path check or scan finding is an observation, not permission to remove unexamined descendants or a guarantee against all concurrent filesystem changes. Ordinary removal revalidates rules/observations, accepts only resident current-user-owned single-link files and uses private staging before the single Foundation Trash gateway. SwiftUI now presents explicit selection and full-path confirmation; Core's parameter alone cannot establish human review. Application directories require the separate bounded whole-tree capability and app-specific undo documented in [APPLICATIONS.md](docs/APPLICATIONS.md); they grant no ordinary folder or leftover authority.
+
+Phase 4 binds a guarded finding to its complete required producer set and rejects later rule mismatches. Current-user process observations gate scanning and removal when `requiresClosedApplications` is true; running or uncertain states cannot pass. Executable and bundle-family names are incomplete heuristics, and a producer may launch or exec after a check. Bridge remains unsupported. Pure grouping preserves original findings and supplied provenance without discovering projects or granting removal authority. Default-location confirmations do not verify cache contents or broaden the compiled roots. See [creative-cache evidence](docs/CREATIVE-CACHE.md).
 
 The local manifest uses a chained HMAC-SHA256 record format, a 0600 key and journals inside a 0700 directory, bounded parsing, file locks, and `fsync` before mutation. Authentication is local integrity protection, not encryption or a public digital signature. Anyone with the same user's key access can forge records, and truncation to a valid complete prefix is not detectable. Paths in exported journals remain sensitive; export verifies bytes but does not redact them. There is no network export endpoint.
 
@@ -36,8 +38,8 @@ Never ask users to grant Full Disk Access to Terminal or another general-purpose
 
 ## Network and release integrity
 
-Telemetry is prohibited. The product decision about a default-off GitHub update check is pending; no application networking code exists.
+Telemetry is prohibited. The 0.1.0 preview makes no application network requests and implements no update check. An explicitly chosen source link opens the browser.
 
-Signing keys, certificates, API tokens, and notarization credentials do not belong in this repository. CI uses read-only permissions, a commit-pinned checkout action, and a checksum-verified XcodeGen release. GitHub secret scanning, push protection, and private vulnerability reporting are enabled. Main requires the GitHub Actions build/test check on an up-to-date branch, including for administrators, and disallows force pushes and deletion. Release signing and notarization will be configured after the owner supplies the required developer account setup.
+Signing keys, certificates, API tokens and notarization credentials do not belong in this repository. CI uses read-only permissions, a commit-pinned checkout action and checksum-verified XcodeGen. Repository protections should be checked separately before publication. Local packaging checks universal binaries, strict ad-hoc signatures, archive hashes and extracted-bundle manifests. The implemented Developer ID/notarization workflow requires a valid installed identity and existing keychain profile; no successful notarized release is claimed without those credentials and actual Apple acceptance.
 
-The safety contract and its planned enforcement map are in [SAFETY.md](SAFETY.md).
+The safety contract and current enforcement map are in [SAFETY.md](SAFETY.md).

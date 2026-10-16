@@ -36,14 +36,16 @@ struct RemovalOperations: Sendable {
     static let live = RemovalOperations(
         trash: { path in
             var destination: NSURL?
-            try FileManager.default.trashItem(at: URL(fileURLWithPath: path, isDirectory: false), resultingItemURL: &destination)
+            try FileManager.default.trashItem(at: removalFileURL(path), resultingItemURL: &destination)
             guard let destination else { throw RemovalSafetyError.unsafeRecoveryLocation }
-            return destination.path ?? ""
+            return (destination as URL).withUnsafeFileSystemRepresentation { bytes in
+                bytes.map { String(cString: $0) } ?? ""
+            }
         },
         isInTrash: { path in
             var relationship: FileManager.URLRelationship = .other
             try FileManager.default.getRelationship(&relationship, of: .trashDirectory, in: [],
-                                                    toItemAt: URL(fileURLWithPath: path, isDirectory: false))
+                                                    toItemAt: removalFileURL(path))
             return relationship == .contains
         }
     )
@@ -56,6 +58,8 @@ public actor RemovalEngine {
     private let fileSystem: RemovalFileSystem
     private let manifest: ManifestStore
     private let operations: RemovalOperations
+    private let appActivity: AppActivity
+    private let applicationActivity: ApplicationProcessActivity
 
     public init(manifest: ManifestStore) throws {
         let policy = try SafeRoots.currentUser()
@@ -63,11 +67,14 @@ public actor RemovalEngine {
     }
 
     init(policy: SafeRoots, manifest: ManifestStore, operations: RemovalOperations = .live,
-         calculator: SizeCalculator = SizeCalculator()) {
+         calculator: SizeCalculator = SizeCalculator(), appActivity: AppActivity = AppActivity(),
+         applicationActivity: ApplicationProcessActivity = ApplicationProcessActivity()) {
         self.policy = policy
         self.fileSystem = RemovalFileSystem(policy: policy, calculator: calculator)
         self.manifest = manifest
         self.operations = operations
+        self.appActivity = appActivity
+        self.applicationActivity = applicationActivity
     }
 
     public func moveToTrash(reviewedFindings: [Finding], ruleSet: RuleSet, appVersion: String,
@@ -108,6 +115,7 @@ public actor RemovalEngine {
         var source: RemovalLocation?
         do {
             let rule = try matchingRule(finding, rules: rules, now: now)
+            try requireProducerObservation(rule)
             let opened = try fileSystem.open(finding.resolvedPath, includeSize: true, skipBackup: rule.skipExcludedFromBackup)
             try fileSystem.requireOrdinaryOwnedFile(opened, expected: item.identity)
             guard opened.metadata.fingerprint == finding.observation, opened.metadata.allocatedSize == finding.allocatedSize else {
@@ -119,6 +127,7 @@ public actor RemovalEngine {
             stagePath = try fileSystem.stagingPath(for: item, sessionID: sessionID)
             // This record is durable before even creating a transaction directory.
             try record(.prepared, item: item, sessionID: sessionID, stagingPath: stagePath)
+            try requireProducerObservation(rule)
             let staging = try fileSystem.makeStagingParent(for: item, sessionID: sessionID)
             try operations.beforeCapture(item.originalPath)
             _ = try guarder.revalidate(receipt)
@@ -129,6 +138,7 @@ public actor RemovalEngine {
             try fileSystem.verify(opened.anchors)
             try fileSystem.move(last, into: staging, name: item.id.uuidString) {
                 try operations.beforeCaptureRename(item.originalPath)
+                try requireProducerObservation(rule)
             }
             captured = true
             try operations.afterCapture(stagePath!)
@@ -141,6 +151,7 @@ public actor RemovalEngine {
             let ready = try fileSystem.verifiedStage(stagePath!, item: item, sessionID: sessionID)
             guard ready.metadata.fingerprint == staged.metadata.fingerprint else { throw RemovalSafetyError.changed }
             try fileSystem.verify(opened.anchors)
+            try requireProducerObservation(rule)
             trashStarted = true
             trashPath = try operations.trash(stagePath!)
             let trashed = try fileSystem.open(trashPath!)
@@ -184,7 +195,10 @@ public actor RemovalEngine {
         _ = try policy.validateCandidate(finding.resolvedPath)
         guard let rule = rules.rules.first(where: { $0.id == finding.ruleID }), rule.enabled && rule.verified,
               rule.module == finding.module, rule.risk == finding.risk, rule.reason == finding.reason,
-              rule.regenerationCost == finding.regenerationCost else { throw RemovalSafetyError.invalidSelection }
+              rule.regenerationCost == finding.regenerationCost,
+              finding.requiredClosedProducers == (rule.requiresClosedApplications ? rule.producers.sorted() : []) else {
+            throw RemovalSafetyError.invalidSelection
+        }
         var matches = false
         for declared in rule.paths {
             let root = try policy.validateScanRoot(declared)
@@ -197,6 +211,15 @@ public actor RemovalEngine {
         if let days = rule.conditions.first?.olderThanDays,
            finding.modifiedAt >= now.addingTimeInterval(-Double(days) * 86_400) { throw RemovalSafetyError.invalidSelection }
         return rule
+    }
+
+    private func requireProducerObservation(_ rule: Rule) throws {
+        guard rule.requiresClosedApplications else { return }
+        switch appActivity.check(producers: rule.producers) {
+        case .notObservedRunning: return
+        case .running: throw RemovalSafetyError.producerRunning
+        case .unknown: throw RemovalSafetyError.producerActivityUnknown
+        }
     }
 
     private func record(_ action: ManifestAction, item: ManifestItem, sessionID: UUID,
@@ -216,7 +239,8 @@ public actor RemovalEngine {
     private func refusalOutcome(_ error: any Error) -> RemovalOutcome {
         switch error {
         case ScanMetadataError.dataless, ScanMetadataError.excludedFromBackup, RemovalSafetyError.ownership,
-             RemovalSafetyError.multipleLinks, RemovalSafetyError.missing, PathGuardError.missing: .skipped
+             RemovalSafetyError.multipleLinks, RemovalSafetyError.missing, PathGuardError.missing,
+             RemovalSafetyError.producerRunning: .skipped
         default: .refused
         }
     }
@@ -229,4 +253,30 @@ private struct Attempt {
 
 private struct JournalFailure: Error {
     let detail: String
+}
+
+extension RemovalEngine {
+    /// Explicitly reviewed app bundles use a separate bounded directory policy
+    /// and authenticated session type. Regular-file cleanup rules remain intact.
+    public func moveApplicationToTrash(reviewedApplication: ApplicationRemovalSelection, appVersion: String,
+                                       now: Date = Date()) throws -> RemovalReport {
+        let appPolicy = ApplicationPolicy.forHome(policy.homeDirectory)
+        return try ApplicationRemovalTransaction(policy: appPolicy, manifest: manifest, operations: operations,
+                                                 calculator: fileSystem.calculator, activity: applicationActivity)
+            .remove(reviewedApplication, appVersion: appVersion, now: now)
+    }
+
+    /// Only application-removal-v1 sessions can enter this app-only undo path.
+    public func restoreApplication(sessionID: UUID) throws -> UndoReport {
+        let appPolicy = ApplicationPolicy.forHome(policy.homeDirectory)
+        return try ApplicationRemovalTransaction(policy: appPolicy, manifest: manifest, operations: operations,
+                                                 calculator: fileSystem.calculator, activity: applicationActivity)
+            .restore(sessionID: sessionID)
+    }
+}
+
+/// Foundation's String-path constructor applies Unicode decomposition on macOS.
+/// Keep the exact reviewed filesystem bytes through the final Trash boundary.
+func removalFileURL(_ path: String, isDirectory: Bool = false) -> URL {
+    path.withCString { URL(fileURLWithFileSystemRepresentation: $0, isDirectory: isDirectory, relativeTo: nil) }
 }

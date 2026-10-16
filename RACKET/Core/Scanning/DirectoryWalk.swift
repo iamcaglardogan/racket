@@ -36,6 +36,8 @@ public enum ScanIssueReason: Equatable, Sendable {
     case notOldEnough
     case duplicate
     case sizeOverflow
+    case producerRunning([String])
+    case producerActivityUnknown
 }
 
 public enum ScanIssueDisposition: String, Sendable {
@@ -56,8 +58,9 @@ public struct WalkIssue: Sendable {
             case .inaccessible: .incomplete
             default: .refused
             }
-        case .dataless, .excludedFromBackup, .notOldEnough, .duplicate: .skipped
-        case .metadataUnavailable, .unsupportedMetadata, .depthLimit, .entryLimit, .sizeOverflow: .incomplete
+        case .dataless, .excludedFromBackup, .notOldEnough, .duplicate, .producerRunning: .skipped
+        case .metadataUnavailable, .unsupportedMetadata, .depthLimit, .entryLimit, .sizeOverflow,
+             .producerActivityUnknown: .incomplete
         }
     }
 }

@@ -14,11 +14,14 @@ public struct Finding: Equatable, Sendable {
     /// Retained only from the live scan; consumers must revalidate it before
     /// mutation. A synthetic finding without an observation grants no authority.
     let observation: ScanMetadataFingerprint?
+    /// Preserve the reviewed producer guard so a changed rule requires a rescan.
+    let requiredClosedProducers: [String]
 
     init(
         resolvedPath: String, allocatedSize: UInt64, modifiedAt: Date,
         ruleID: String, module: Rule.Module, risk: Rule.Risk, reason: String,
-        regenerationCost: String, observation: ScanMetadataFingerprint? = nil
+        regenerationCost: String, observation: ScanMetadataFingerprint? = nil,
+        requiredClosedProducers: [String] = []
     ) {
         self.resolvedPath = resolvedPath
         self.allocatedSize = allocatedSize
@@ -29,6 +32,7 @@ public struct Finding: Equatable, Sendable {
         self.reason = reason
         self.regenerationCost = regenerationCost
         self.observation = observation
+        self.requiredClosedProducers = requiredClosedProducers
     }
 
     public var isPreselectable: Bool { risk != .judgement }

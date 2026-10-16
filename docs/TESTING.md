@@ -1,84 +1,112 @@
-# Safety testing
+# Verification scope
 
-Phase 1 tests were written before the PathGuard implementation. XCTest and local checks exercise public behavior with synthetic files in unique, private temporary directories, injected manifest storage, and fake Trash. Fixtures are retained; there is no permanent-deletion teardown, and these checks do not scan or mutate a developer’s home or real Trash. The separate guarded CI integration below is the only live-transport exception.
+RACKET uses synthetic safety suites, isolated producer regeneration checks, Debug UI verification, package validation and a separate guarded live Foundation integration. These establish different boundaries; none substitutes for all the others. Final evidence for the exact 0.1.0 preview is collected in [VERIFICATION-2026-10-16.md](VERIFICATION-2026-10-16.md).
 
-## Phase 1 checks
+## Local development checks
 
-| Boundary | Evidence required |
+```sh
+make core-test
+make test
+make check-policy
+make build CONFIGURATION=Release
+make package
+```
+
+SwiftPM and Xcode use the same Core sources/tests. Full Xcode supplies XCTest and the SwiftUI app toolchain; some Command Line Tools installations can compile Core but cannot run XCTest. The generated project comes from `project.yml`. Source policy checks selected permanent-deletion/networking APIs, misplaced Trash calls and UI imports in Core; regex checks are guardrails rather than runtime proof.
+
+Prior local checks at source `30e92c7efddee550a21e3bce4a36749faebaf887` passed 350 Debug Core tests in SwiftPM/Xcode, **346 Release Core tests** and five app tests. The four-case Core difference comes from Debug-only fixtures. Logs: `/private/tmp/RACKET-CoreFinalProcessTests.log`, `/private/tmp/racket-product-xcode-final-tests.log` and `/private/tmp/racket-product-release-tests.log`. The Release Core result is reused for the current UI-only correction because Core sources are unchanged and the framework SHA-256 is identical: `e244a8afa40ed793b3a4caa848ebd2c1166e81e99e5a4ee4793e17e5edf263bc`. It is not described as a fresh Release test execution at the later source.
+
+Current native-search revision `4ccfa684597f48b3352d1919d0c202dba6a2b401` passed **350 Core tests in hosted SwiftPM/Xcode and 7 app-flow tests**, including toolbar focus after blur/recreation and selected-window routing with Unicode binding. Local app log: `/private/tmp/RACKET-NativeSearchFinalAppFlowTests.log`; result bundle: `/private/tmp/racket-product-tests/Logs/Test/Test-RACKET-2026.10.16_10-10-34-+0300.xcresult`. Both hosted runs passed, one on its transparent second attempt; the first read-only activity refusal is preserved below. The current promoted archive has its own source-matched receipts; old `30e92c7` archive hashes are not attributed to it.
+
+The isolated package invocation used `--disable-sandbox` because nested SwiftPM manifest sandboxing is unavailable inside the agent's filesystem sandbox. Build outputs/caches remained redirected to approved workspace/temporary locations. This does not relax the app's own filesystem policies.
+
+## Synthetic filesystem evidence
+
+XCTest and local fixture checks create unique private temporary directories, inject home/policy/manifest locations and use fake Trash transports with real namespace moves. Generated content is retained; there is no permanent-deletion teardown. Tests must not scan or mutate the owner's home, installed apps, caches, creative projects, real Trash or live cloud data.
+
+| Boundary | Covered behavior |
 | --- | --- |
-| Compiled roots | Only descendants of the synthetic home's Library/Caches and Library/Logs can pass; roots themselves cannot be removal candidates |
-| Lexical paths | Generated traversal, prefix-collision, case, Unicode, repeated-separator, relative, and NUL/control inputs never authorize a path outside those roots |
-| Protected data | Preferences, recognized protected folder names such as Original Media and Auto-Save, protected project extensions, cloud-container paths, and .git remain refused independently of allow-list matching; arbitrary media files are not identified by content |
-| Filesystem identity | Symlink leaves, ancestors, safe-root replacements, dangling links, and loops are refused; no symlink target is followed |
-| Revalidation | An unchanged identity receipt passes; moving aside and replacing an item or ancestor invalidates the receipt |
-| Rule data | Unknown fields, malformed values, duplicate IDs, unexplained rules, invalid citations, unverified enabled rules, and unsafe paths fail validation |
-| Bundled resources | The actual bundled JSON is decoded and validated in both SwiftPM and the Xcode framework test environment |
-| Source boundaries | CI rejects selected permanent-deletion APIs, Trash calls outside RemovalEngine, UI dependencies in Core, and unapproved networking APIs |
+| Compiled authority | Exact roots, root-candidate refusal, independent protected names/extensions, declaration validation for enabled and disabled rules, npm/Xcode prefix/case/Unicode collisions and 10,000 generated adversarial paths |
+| Rule schema | Required explanations/citations, bounded fields/depth/age, supported modes, strict flags, duplicate keys/IDs, unsupported schema, unsafe declarations and bundled resources |
+| Metadata and traversal | Flags-before-stat/size gates, thread-policy restoration/nesting, no-follow ancestry, symlinks, special files, changed roots/parents/entries, deterministic hard-link deduplication, cancellation and resource bounds |
+| Allocation | Allocated metadata rather than logical length, sparse/resource-fork fixtures, negative/missing values, checked totals and overflow refusal |
+| Ordinary removal | Current observations/rules/producer guards, single-link ownership, durable intent before capture, private staging, exact returned transport path, replacement/refusal/failure states and a stop on journal failure |
+| Ordinary undo | Whole-history authentication, recorded-source identity, destination conflicts, missing parents, interrupted operations and no overwrite/path guessing |
+| Developer rules | Actual bundled declarations scan old synthetic cache files, preserve recent/protected/out-of-scope files, move an explicit review through fixture Trash and restore identical bytes; newly running/unknown producers refuse progress |
+| Creative grouping | Explicit association provenance, complete producer sets, separate unknown/application-wide groups, byte-exact opaque identities, checked totals, retained findings and file-mtime semantics |
+| Storage | Separate read-only authority, capacity math, allocated/hard-link totals, package/link/cloud skips, partial coverage, bounds and cancellation |
+| App management | Metadata discovery, system/self/owner protections, bounded tree receipts, linked/shared/protected/dataless descendants, running/unknown activity, substitutions, app-specific journal/undo, conflict/journal-failure handling and separation from ordinary undo |
+| Product runtime | Debug-only isolated workspace, reviewed synthetic file removal, reopening session history, public undo flow and unchanged restored bytes |
 
-## Phase 2 checks
+Sources: [path tests](../Tests/PathGuardTests/PathGuardTests.swift), [rule tests](../Tests/RuleSetTests/RuleSetTests.swift), [developer integration](../Tests/RuleSetTests/DeveloperRuleIntegrationTests.swift), [scanning tests](../Tests/ScanEngineTests/), [removal/recovery tests](../Tests/RemovalEngineTests/), [creative tests](../Tests/CreativeCacheTests/), [storage tests](../Tests/StorageTests/), [app tests](../Tests/AppManagementTests/), and [workflow tests](../Tests/WorkflowTests/).
 
-The verified Phase 2 baseline contains 146 XCTest cases: 62 Phase 1 cases plus 3 backup-rule cases, 8 bulk-parser cases, 21 walker/integration cases, 24 engine cases, and 28 metadata/size cases. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in SwiftPM and Xcode, source checks, and the universal build. Local core compilation and 57 narrow scanner/size/parser smoke cases passed; these checks do not substitute for XCTest execution.
+`SF_DATALESS` is read-only SDK metadata, so an ordinary unprivileged file cannot faithfully synthesize a provider placeholder by setting that flag. Injected states prove refusal/call order, not real iCloud/File Provider hydration behavior. No scanner production path opens ordinary file contents. App inventory separately reads bounded admitted bundle metadata; that is not a general content scanner.
 
-| Boundary | Evidence |
+## Real producer regeneration
+
+[verify-developer-caches.py](../scripts/fixtures/verify-developer-caches.py) generates private disposable sources and redirects producer cache/config/log/temp locations. It preserves original caches before regeneration. It does not use the owner's real caches or install a Homebrew formula.
+
+- npm 11.17.0 on Node 24.19.0 refetched a missing content blob with its index retained, regenerated an empty `_cacache`, installed the same local pinned package offline three times, and verified the new fixture cache.
+- Apple Clang 21 regenerated a compiled module from a generated header/module map. Rebuilt executable bytes and behavior matched, and original sources remained unchanged.
+- A disposable actual Homebrew checkout refetched an identical local-file formula download after its original cache file was preserved; installed software was unchanged.
+
+The preserved successful evidence is `/private/tmp/RACKET-DeveloperCacheEvidence-v7uqdl2k/evidence.json`. [RULE-VERIFICATION.md](RULE-VERIFICATION.md) provides the source commit, exact hashes, versions and limitations. Local-file/offline fixture refill does not prove availability of every historical/private upstream package or every compiler/SDK combination.
+
+## UI and package verification
+
+Debug builds may be opened with `--verification-fixtures` to create a clearly labelled `AppRuntime.verification()` workspace under `/private/tmp/RACKET-UI-*`. Its scan/removal/recovery use synthetic data and fake Trash. Review actual controls for selection, hidden filters, exclusions, full confirmation, cancellation, result details, ordinary/app restore routing, storage exploration and scan-only scheduling. Preserve screenshots and fixture journals. Product UI checks must be reported separately from Core suite counts.
+
+The app supplies native controls, accessibility labels and keyboard actions. Real pointer checks completed four-file and single-app exact-review/fixture-Trash/undo journeys; the corrected list viewport and accessibility roles/labels were observed. Storage showed 475 KB, 17 entries and one package skip. After unlock, a real Command-F/menu focus defect was reproduced and fixed with a native `NSSearchField` and key-window focus dispatch. At `4ccfa68`, actual keyboard/menu actions focused the field, replaced queries and filtered cleanup/apps correctly, including after toolbar recreation. Clearing the query returned four files with zero selected. VoiceOver and accessibility compliance remain unverified. [Native evidence](NATIVE-VERIFICATION-2026-10-16.md) records exact fixtures and observations; no personal caches or real Trash were used.
+
+A bundle-only Release installation check caught a failure that archive/signature checks and Debug tests had missed: the optimized framework rejected valid ASCII rule identifiers. Equivalent direct ASCII-byte validation, exhaustive schema regressions and real Release tests fixed it. The rebuilt universal Release app's `--verify-installation` then passed with document 1.2.0 and all three expected enabled rules. The old `dist/local-0.1.0` package is superseded and must not be treated as the ready artifact; final packaging must use the corrected Release build.
+
+The promoted `4ccfa68` package in **`dist/local-0.1.0-keyboard-verified`** independently passed app/ZIP/DMG signatures, slices, exact archive hashes, extracted manifests, fixture exclusion, three installation diagnostics and source-matched hosted CI reconciliation. Its report retains all attempts, including the read-only refused first attempt. The older `30e92c7` package is historical. Package diagnostics verify binaries/resources, not a production GUI session or scan of the owner's caches. No production cache scan was performed; that absence is intentional.
+
+Release packaging rejects fixture entry points/synthetic rules. `scripts/verify-package.sh` checks both binary slices, minimum OS metadata, strict signatures and the extracted ZIP/DMG bundles against the same content manifest. It verifies exact archive checksums, ZIP path confinement, DMG structure and expected Applications shortcut. Temporary extracts/mount workspaces are preserved; the image is detached after inspection. These checks establish artifact integrity, not reproducibility across builds or runtime coverage on both architectures.
+
+Local packages are ad-hoc signed and **not Apple notarized**. The credential-gated release path additionally requires valid Developer ID signing, accepted notary responses, stapled tickets and Gatekeeper assessment. No success is claimed for that path without those actual results. See [DISTRIBUTION.md](DISTRIBUTION.md).
+
+Owner-authorized read-only production scans/inventory are operational smoke observations, not fixture tests. Record aggregate results and limitations separately; do not turn personal cache/app data into disposable test inputs or remove it to demonstrate the preview.
+
+## Historical CI baselines
+
+| Checkpoint | Historical CI evidence |
 | --- | --- |
-| Exact findings | [Checked-in fixture tree](../Tests/Fixtures/scan-tree.json), materialized in a unique private temporary home; real walker and engine assert exact files and protected-path refusals |
-| Bulk records | Returned masks, optional error fields, dataless flags, Unicode names, malformed lengths/references, and missing attributes |
-| Traversal | Symlink farms and roots, protected children, FIFOs, missing origins, depth and entry limits, no directory findings, unchanged fixture contents |
-| Concurrent changes | Injected symlink and ordinary-file substitutions during size lookup, directory movement, and hard-link name-cache churn verify entry identity and discard affected observations |
-| Dataless gates | Injected flags and cloud state prove explicit stat/size call ordering; policy success/error/nesting restores the prior thread state; walker emits a visible skip |
-| Allocation | Real sparse and resource-fork fixtures, missing/negative/large metadata, no logical-size fallback, and UInt64 overflow refusal |
-| Orchestration | Disabled rules, independent policy validation, exact age boundary, explicit backup option, bounded concurrency, cancellation, honest progress counts, deterministic duplicate/hard-link handling, and aggregate limits |
+| Phase 1 | [Run 34125991610](https://github.com/iamcaglardogan/racket/actions/runs/34125991610): 62 XCTest cases in SwiftPM/Xcode, source checks and universal app build |
+| Phase 2 | [Run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143): 146 cases in both runners, source checks and universal build |
+| Phase 3 | [Run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), `780a4ad`: 226 cases in both runners, source checks, universal build/entitlements and live ordinary-file Foundation Trash/undo |
+| Phase 4 | [Run 35216679049](https://github.com/iamcaglardogan/racket/actions/runs/35216679049), `8f94aa5`: 281 cases in both runners, application build, source checks/entitlements and live ordinary-file Foundation Trash/undo |
 
-The fixtures are read from source using the test's compile-time file location, not from the real home directory. Temporary files and resource forks remain preserved. Schema fixtures use fixed synthetic citations and do not enable any bundled rule.
-
-`SF_DATALESS` is read-only synthetic metadata in the macOS SDK, not a flag that an unprivileged test can faithfully set on a normal file. Instrumented operations test the refusal logic; they do not reproduce a provider. Actual iCloud/File Provider integration, separate mounted volumes, macOS 14 runtime, and representative speed benchmarks remain outstanding. [SCANNING.md](SCANNING.md) explains the synchronous kernel policy and the remaining pathname-observation limits.
-
-## Phase 3 checks
-
-[PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), at `780a4ad`, passed all 226 XCTest cases in each of SwiftPM and Xcode, source guardrails, the universal `arm64`/`x86_64` app build, and entitlements validation. A separate local narrow harness passed 76 cases; that is not XCTest execution or a substitute for either CI runner. The following boundaries are covered by the synthetic suite. The owner’s Phase 3 checkpoint review remains pending in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3); Phase 4 has not begun.
-
-| Boundary | Added assertions |
-| --- | --- |
-| Scan observations | Live fingerprints survive walker/engine conversion; synthetic defaults remain unobserved; replacing a file with the same size and restored modification time changes its observation |
-| Removal selection | Missing observations and duplicate paths are rejected before session creation; rules, depth, age, allocation, and current identity are rechecked; hard links are skipped |
-| Transaction order | Prepared and staged records exist before the fake Trash call; failure before intent leaves sources in place; failures after capture preserve recoverable evidence; failed final records stop the batch |
-| Concurrent changes | Original-file, symlink, staging, and ancestor substitutions cannot produce trusted success; rollback conflicts preserve both files |
-| Journal integrity | App/rule-set versions, dates, all event actions, and UInt64 bounds survive authentication; tampering, record reordering, duplicate records, cross-session replay, and partial tails are refused |
-| Journal filesystem | Persistent keys reopen existing sessions; symlinks, hard links, unsafe modes, access-granting ACLs, and directory replacement are refused; synchronization errors remain visible; operation locks serialize store instances |
-| Undo | Round trip to the original path; exact recorded identities; no overwrite when a destination already exists or appears after intent; no parent recreation; missing and unrecognized recovery locations are reported |
-| Interrupted recovery | Recover verified staging records; validate the whole history before any move; resume interrupted restore only with matching identity; no same-name inference; journal failure stops subsequent items |
-| Dataless and cancellation | Injected dataless states stop before explicit stat/size/Trash work; cancellation between items stops further namespace changes |
-
-The [removal](../Tests/RemovalEngineTests/RemovalEngineTests.swift), [manifest](../Tests/RemovalEngineTests/ManifestTests.swift), [undo](../Tests/RemovalEngineTests/UndoServiceTests.swift), and [observation](../Tests/ScanEngineTests/RemovalObservationTests.swift) suites use unique synthetic homes under `/private/tmp`. The fake Trash transport renames fixture files to another fixture directory. Descriptor lookup, rename, metadata, journal files, authentication, and synchronization use actual local implementations, with injected failures at selected boundaries. All XCTest fixtures remain preserved; neither a developer’s home nor real Trash is scanned or mutated.
-
-These tests do **not** exercise `FileManager.trashItem`, Foundation's recognition of the actual Trash directory, Finder's Put Back behavior, real cloud providers, separately mounted volumes, or a power-loss crash. Synchronized writes and injected failures do not establish durability under every storage failure. A successful fake-transport round trip is not evidence of a real Foundation Trash round trip.
+These runs predate the new product views, enabled developer rules, storage/app modules and packaging. They do not certify the current working tree. The configured hosted CI uses macOS 15 and Xcode 16.4; local preview development reported macOS 27.0.1, Xcode 27.0 and Apple Swift 6.4. The deployment target remains macOS 14, whose runtime compatibility is separately unverified.
 
 ## Guarded live integration
 
-`scripts/check-live-trash.sh` and `scripts/fixtures/LiveTrash.swift` add a separate integration executable outside XCTest and the app targets. **The ordinary-file live round trip passed [CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716) at `780a4ad`.** It verified actual Foundation Trash followed by public `UndoService`, the original inode and identical bytes, and five authenticated journal actions after reopening the persistent store.
+`scripts/check-live-trash.sh` and `scripts/fixtures/LiveTrash.swift` are separate from XCTest and the app. The historical Phase 3/4 runs above passed an actual Foundation Trash/public-undo ordinary-file round trip with the original inode, identical bytes and five authenticated journal actions after reopening the store. They used a synthetic rule; this is not vendor-cache or app-bundle integration evidence.
 
-Never run the account-setup script locally or on a self-hosted runner, and never spoof its environment guards. It requires GitHub Actions, a GitHub-hosted macOS runner, Darwin, and a non-root setup process; the workflow selects a disposable `macos-15` VM. Setup creates a fresh 0700 `/Users/RACKET-LiveTrash-<UUID>` directory with `mkdir`, refusing an existing path, and temporarily assigns it to the runner for compilation with Core sources and the SwiftPM resource accessor. It checks account/group names and UID/GID availability, then creates a new account and group with `/Users/RACKET-LiveTrash-<UUID>/Home` as its home, no enabled password, no interactive login shell, and no membership added to existing groups. This live fixture uses `/Users` to keep Foundation’s home spelling canonical; XCTest and local fixtures remain under `/private/tmp`. Setup uses `sudo` and transfers the fixture directory, home, and executable to the new non-root account before running it. Account and files are preserved for the VM’s lifetime.
+**Never run the account-setup script locally or on a self-hosted runner; never spoof its guards.** It requires GitHub Actions, a GitHub-hosted macOS VM, Darwin and a non-root setup process. The workflow uses a disposable `macos-15` runner. Setup creates a fresh mode-0700 `/Users/RACKET-LiveTrash-<UUID>` directory and a new noninteractive account/group with its own synthetic home, without adding membership to existing groups. Compilation and runtime data stay in that fixture; account/files persist until VM disposal.
 
-The name and UID/GID preflight assumes no concurrent account creation in that disposable job. `dscl -create` is not an atomic create-if-absent reservation. The environment checks are guardrails, not a sandbox or protection against someone deliberately bypassing them.
+Account/name/UID/GID preflight assumes no concurrent account creation in the disposable job. `dscl -create` is not an atomic create-if-absent reservation. Environment guards are not a sandbox against deliberate bypass.
 
-Before writing fixture data, the executable verifies real/effective IDs, supplementary groups, the passwd record, Foundation’s current-user home resolution, and private canonical fixture directories. It creates one ordinary file, uses the public current-user `SafeRoots`, `ScanEngine`, `ManifestStore`, `RemovalEngine`, and `UndoService` APIs, and supplies one explicit synthetic rule and selection. It neither injects a Trash transport nor calls Trash directly; the sole live call remains inside `RemovalEngine`. It checks the returned item’s identity and bytes, reopens the authenticated on-disk journal, restores the original path, and expects the five removal/restore journal actions.
+Before writing fixture content, the executable checks IDs, supplementary groups, passwd data, actual Foundation home resolution and private canonical fixture directories. It uses public current-user `SafeRoots`, `ScanEngine`, `ManifestStore`, `RemovalEngine` and `UndoService`, without a fake Trash transport or direct Trash call. Only the production removal boundary invokes Foundation. The returned object, identity, bytes and authenticated history are then checked.
 
-Foundation Trash discovery is checked before removal, and the returned destination is checked afterward. The public Core path cannot pin the destination used by Foundation; these checks do not make the pathname operation atomic or guarantee confinement before the call. The disposable VM and fresh account are the integration environment. This result establishes the ordinary-file public-API round trip on that runner. Same-UID attacker resistance, Finder Put Back, cloud-provider or separate-volume behavior, macOS 14 runtime compatibility, and power-loss durability remain unverified.
+Current `4ccfa68` [run 38865863334](https://github.com/iamcaglardogan/racket/actions/runs/38865863334) passed on attempt 1. Parallel [run 38865857832](https://github.com/iamcaglardogan/racket/actions/runs/38865857832) passed on the single failed-job rerun, attempt 2, completed at 10:21:29 Europe/Istanbul. Both successful attempts include 350 Core/7 app tests, universal Release/resources/self-checks and complete ordinary/app Foundation Trash/public undo. Success logs are `/private/tmp/RACKET-4ccfa68-CI-success.log` and `/private/tmp/RACKET-4ccfa68-CI-retry-success.log`, with round-trip evidence at lines 3493–3501. Attempt 1 of the parallel run remains a documented failure: `activityUnknown` during read-only app review, before any app manifest/session/staging/move, despite a passed process preflight and ordinary-file round trip. Its exact snapshot cause is unknown; strict gates and source were unchanged for the retry. The failed log is preserved at `/private/tmp/RACKET-4ccfa68-CI-failed.log` and alongside the archive. No fixture uses the owner's installed apps.
 
-## Limits and later phases
+Foundation's destination is checked before/after the operation but cannot be pinned by the public pathname API. These integrations do not close that race or establish malicious same-UID isolation, Finder Put Back, real-provider/separate-volume behavior, macOS 14 runtime or power-loss durability.
 
-PathGuard is a read-only path and identity check. A successful check is not authority to remove a directory's unexamined descendants. The scanner and removal engine validate their own scope. Removal supports individual ordinary files only; directory removal would require a separate descendant-safety design.
+## Remaining verification limits
 
-An identity receipt is an observation, not an atomic filesystem transaction. Phase 3 rechecks the original observation and uses private staging before Trash. A last-moment source replacement can be captured and then refused, requiring review; the capture does not guarantee that no unrelated file was moved. The final Foundation pathname call has a remaining race window, and private permissions do not isolate another process with the same UID. [REMOVAL.md](REMOVAL.md) documents these boundaries and uncertain journal outcomes.
-
-Phase 2 implements metadata gates, size accounting, traversal depth, and cancellation tests. Phase 3 verifies manifest ordering and synthetic transport round trips; its guarded integration also passed the ordinary-file actual Foundation Trash/public-undo round trip. No scanner production path opens regular-file content. Mount-boundary logic still needs coverage on separately mounted test volumes before broader roots are enabled.
-
-macOS CI executes with Xcode 16.4 on macOS 15. Its deployment target is macOS 14; that is not a substitute for runtime testing on macOS 14. Command Line Tools can compile the core, but running XCTest requires a toolchain containing that framework.
+- macOS 14 and Intel runtime testing are outstanding. Universal compilation and minimum-version metadata do not replace them.
+- Genuine iCloud/File Provider placeholders, mounted-volume transitions, cloud/remote filesystem stalls and power-loss durability remain unverified.
+- Actual app/tree Foundation Trash/public undo passed in the disposable hosted account; it remains distinct from local fake-transport tests and does not validate arbitrary user apps/providers/volumes.
+- HMAC does not provide journal confidentiality, same-user forgery protection or detection of valid-prefix truncation. Private permissions do not isolate same-UID attackers.
+- A second metadata check is not atomic; last-moment source replacement can be captured then refused, and Foundation retains its final pathname window.
+- Representative performance benchmarks, full accessibility/usability coverage and complete vendor-helper identity catalogues are not established.
+- Camera Raw/broader creative cleanup, general system/log sweeping and exhaustive app-leftover removal are unavailable. Feature absence is not a completed verification milestone.
 
 ## Platform references
 
-- [Apple open(2)](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/open.2.html): no-follow opens and metadata-only event descriptors.
-- [Apple fcntl(2)](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fcntl.2.html): retrieving the path of an open descriptor.
-- [Apple TN3150](https://developer.apple.com/documentation/technotes/tn3150-getting-ready-for-data-less-files): per-thread prevention of dataless materialization, including intermediate directory lookups.
-- [Apple getattrlistbulk(2)](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/getattrlistbulk.2): directory records and returned attributes.
-- Installed macOS SDK headers `sys/fcntl.h` and `sys/stat.h` are checked alongside documentation when implementing Darwin calls. They do not replace behavioral tests.
+- [Apple open(2)](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/open.2.html): no-follow and metadata-only descriptors.
+- [Apple fcntl(2)](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fcntl.2.html): retrieving an open descriptor's path.
+- [Apple TN3150](https://developer.apple.com/documentation/technotes/tn3150-getting-ready-for-data-less-files): per-thread prevention of dataless materialization.
+- [Apple getattrlistbulk(2)](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/getattrlistbulk.2): bulk directory records and attributes.
+- Installed SDK headers are checked alongside the documentation; headers do not replace behavioral evidence.

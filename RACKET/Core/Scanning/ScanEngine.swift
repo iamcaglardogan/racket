@@ -7,6 +7,7 @@ public struct ScanEngine: Sendable {
     private let policy: SafeRoots
     private let concurrencyLimit: Int
     private let resultLimit: Int
+    private let appActivity: AppActivity
     private let walk: @Sendable (String, Int, Bool) throws -> DirectoryWalk
 
     public init() throws {
@@ -22,11 +23,13 @@ public struct ScanEngine: Sendable {
         policy: SafeRoots,
         concurrencyLimit: Int,
         resultLimit: Int = 100_000,
+        appActivity: AppActivity = AppActivity(),
         walk: @escaping @Sendable (String, Int, Bool) throws -> DirectoryWalk
     ) {
         self.policy = policy
         self.concurrencyLimit = min(64, max(1, concurrencyLimit))
         self.resultLimit = min(100_000, max(1, resultLimit))
+        self.appActivity = appActivity
         self.walk = walk
     }
 
@@ -86,8 +89,19 @@ public struct ScanEngine: Sendable {
                 let job = jobs[index]
                 group.addTask {
                     try Task.checkCancellation()
+                    if let reason = activityIssue(for: job.rule) {
+                        return CompletedWalk(index: index, walk: DirectoryWalk(
+                            files: [], issues: [WalkIssue(path: job.path, reason: reason)], visitedEntryCount: 0))
+                    }
                     let result = try walk(job.path, job.rule.match.maxDepth, job.rule.skipExcludedFromBackup)
                     try Task.checkCancellation()
+                    if let reason = activityIssue(for: job.rule) {
+                        // The producer changed while walking. Keep the honest
+                        // visit count and discard observations from this job.
+                        return CompletedWalk(index: index, walk: DirectoryWalk(
+                            files: [], issues: result.issues + [WalkIssue(path: job.path, reason: reason)],
+                            visitedEntryCount: result.visitedEntryCount))
+                    }
                     return CompletedWalk(index: index, walk: result)
                 }
             }
@@ -119,6 +133,15 @@ public struct ScanEngine: Sendable {
 
     private static func before(_ lhs: String, _ rhs: String) -> Bool {
         lhs.utf8.lexicographicallyPrecedes(rhs.utf8)
+    }
+
+    private func activityIssue(for rule: Rule) -> ScanIssueReason? {
+        guard rule.requiresClosedApplications else { return nil }
+        switch appActivity.check(producers: rule.producers) {
+        case .notObservedRunning: return nil
+        case .running(let producers): return .producerRunning(producers)
+        case .unknown: return .producerActivityUnknown
+        }
     }
 
     private static func physicalCoreCount() -> Int {
@@ -196,7 +219,8 @@ private struct CollectedScan {
                 resolvedPath: file.resolvedPath, allocatedSize: file.allocatedSize,
                 modifiedAt: file.modifiedAt, ruleID: job.rule.id, module: job.rule.module,
                 risk: job.rule.risk, reason: job.rule.reason, regenerationCost: job.rule.regenerationCost,
-                observation: file.observation
+                observation: file.observation,
+                requiredClosedProducers: job.rule.requiresClosedApplications ? job.rule.producers.sorted() : []
             ))
         }
     }
