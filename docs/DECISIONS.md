@@ -1,81 +1,60 @@
 # Project decisions
 
-## Confirmed by the owner
+## Current direction and authorization
 
-- Agency: El Chedo Production.
-- Product name: **RACKET**. The owner selected it after asking for a name independent of the agency name.
-- Application identifier: `io.github.iamcaglardogan.racket`, explicitly confirmed by the owner.
-- Product: a free, open-source, native macOS cleaner under the MIT license.
-- Minimum operating system: macOS 14.0.
-- Creative priorities: DaVinci Resolve, After Effects, Photoshop, and additional creative applications as rules can be verified.
-- Interface quality is a priority; it should feel distinctive while remaining calm, legible, and honest.
-- Start a GitHub repository and prioritize the safety contract.
-- Apple Developer Team ID is not currently available. Account setup and distribution signing are deferred.
-- Preserve the review checkpoint after each phase of the supplied build brief.
+- Product: **RACKET**, a free, MIT-licensed native macOS storage and reviewed-cleanup utility by El Chedo Production.
+- Repository: `iamcaglardogan/racket`; application identifier: `io.github.iamcaglardogan.racket`. Product identity is separate from the original workspace folder name.
+- Platform: Swift 6 strict concurrency and SwiftUI; deployment target macOS 14.0. No third-party application/core runtime dependencies.
+- Privacy: no application network requests, telemetry, crash uploads or accounts in 0.1.0. There is no update check. Explicit source links open the user's browser.
+- Creative priorities remain Resolve, After Effects and Photoshop, but no unsupported cleanup scope is enabled merely to match competitors.
+- On **October 15, 2026**, the owner delegated completion of the entire flow and its verification. This supersedes earlier phase-by-phase approval stops for this run. It does not waive safety invariants or supply Apple signing credentials.
 
-## Open product choices
+## Local preview scope
 
-- A separate shipping CLI: recommended outside v1; the owner questioned its value and prefers investing in the interface.
-- Networking: recommend no application network requests for the first version. An optional GitHub version check remains a separate decision. GitHub use by contributors and CI does not require networking in the shipped app.
+Version 0.1.0 implements a main window for storage overview, cleanup review, creative status, storage exploration, application inventory/removal review, recovery and settings. [DESIGN.md](../DESIGN.md) records the calm paper/burgundy direction. Paths, allocation, reasons, regeneration costs and skipped/incomplete coverage are part of review; there are no health scores or speed-up promises.
 
-## Accepted Phase 0
+Selection is initially empty. Search/category filters can hide selected files, so the confirmation shows every selected path. Exclusions keep paths out of cleanup. Ordinary removals are batched into at most 256 observed files per Core transaction; each batch has its own authenticated session. Cleanup changes require a fresh scan before further selection.
 
-The public repository is `iamcaglardogan/racket`. The workspace folder may retain its original name. Creator attribution to El Chedo Production remains separate from the RACKET product identity.
+Optional scheduling is **scan-only**, with daily/three-day/weekly intervals while RACKET is open. Missed work becomes due on a later launch. Notifications announce files to review; neither scheduling nor menu-bar operation selects or removes files. Open-at-login uses the standard macOS service.
 
-Phase 0 includes the source directory structure, empty app and test targets, XcodeGen configuration, build commands, CI, contributor guidance, and safety documentation. A Swift package provides a Foundation-only core build with Swift 6 Command Line Tools and a headless test path with XCTest. It is a development check, not a shipping CLI.
+There is no shipping CLI, standing automatic-removal approval, general log/system sweep, duplicate finder, snapshot management, Docker/simulator pruning, malware scanner, RAM cleaner or privileged helper in this preview.
 
-The owner accepted Phase 0 by asking to continue. Its empty app entry point exists solely to verify the application target. That acceptance authorizes Phase 1, not later scanning, removal, permissions, or product views.
+## Cleanup authority and verification
 
-## Phase 1 scope and review
+The fixed bundled schema-1 document is version **1.2.0**, with exactly three enabled developer rules:
 
-Phase 1 implements `SafeRoots`, read-only `PathGuard` validation and identity receipts, the declarative rule model and bundle loader, and source-policy checks. Its 62 XCTest cases comprise 31 PathGuard tests, including 10,000 generated adversarial path cases, and 31 rule tests. CI verification passed, and the owner authorized Phase 2 after the checkpoint. [Pull request 1](https://github.com/iamcaglardogan/racket/pull/1) was merged into main after the owner's explicit approval.
+| Scope | Age | Reason for the narrow boundary |
+| --- | --- | --- |
+| Homebrew `Library/Caches/Homebrew/downloads` | More than 120 days | Download archives only; no installed formulae/configuration |
+| npm `.npm/_cacache` | More than 30 days | Content-addressed package cache only; no `.npmrc`, `_npx`, source or project dependencies |
+| Xcode `Library/Developer/Xcode/DerivedData/ModuleCache.noindex` | More than 30 days | Generated compiler modules only; no package checkouts, project DerivedData, archives or simulators |
 
-Only `~/Library/Caches` and `~/Library/Logs` are compiled rule roots. A root may be a directory-contents rule location but never a removal candidate. Independent protected-name checks cover preferences, project files and packages, original media, autosaves, cloud paths, and `.git`. Additional roots need a separate safety justification and adversarial coverage.
+Primary documentation plus isolated real npm/Homebrew/Clang regeneration checks support these declarations. [RULE-VERIFICATION.md](RULE-VERIFICATION.md) records versions, commands, hashes and limits. Cache refill can still require an available source/network/credentials; file age is modification age, not proof that data is unused.
 
-The bundled schema-1 document is version `1.0.0` with zero rules. Application presence and vendor examples do not establish removal safety. Creative rules stay deferred to Phase 4 verification; no enabled or unverified cache-path claim ships in this checkpoint.
+Compiled roots remain independent of JSON. Two exact roots supplement Caches/Logs: npm `_cacache` and Xcode `ModuleCache.noindex`. Every declaration, even disabled ones, passes the same protected-name policy. A root may be enumerated but cannot itself be a removal candidate. `RuleSet.bundled()` applies current-user policy; `filtered(modules:)` only narrows a validated snapshot.
 
-The loader rejects unknown fields, duplicate JSON keys including escaped equivalents, duplicate rule IDs, missing explanations/citations, invalid bounds, unsupported matching modes, and enabled unverified rules. Every path, including a disabled rule's path, must pass the supplied compiled policy. Rule JSON cannot set a home directory, grant roots, or override protection.
+All enabled rules require fresh supported-producer observations. Findings retain that producer set; changed rules cannot remove its guard without invalidating review. Running or unknown activity blocks the category. Executable-name/bundle-family checks are conservative observations, not an application lock or complete helper catalogue.
 
-`PathGuard` uses metadata-only no-follow descriptor traversal, checks flags before `fstat`, and records item and ancestor identity for later revalidation. The checks do not authorize a directory's unexamined descendants or provide an atomic Trash operation. Actual dataless hydration behavior, live mount transitions, and removal races need further work in Phases 2 and 3. [Testing notes](TESTING.md) record those limits.
+Camera Raw remains disabled and unverified. Creative grouping preserves explicit provenance and byte-exact identities but does not discover live projects. Prior settings observations establish configured parents only; mixed creative cache/project paths do not establish content boundaries. [CREATIVE-CACHE.md](CREATIVE-CACHE.md) retains that evidence.
 
-## Phase 2 scope and review
+## Storage and application management
 
-The owner authorized Phase 2 after the Phase 1 checkpoint. It was developed on `phase-2-read-only-scanner`, originally based on `phase-1-trust-core`. The owner accepted the scanner checkpoint and explicitly approved merging [pull request 2](https://github.com/iamcaglardogan/racket/pull/2), which is now merged into main.
+Storage inspection uses a separate read-only API for a chosen folder. It grants no deletion authority. Explorer bounds, package/link/cloud skips and partial coverage remain visible. Physical filesystem free space is distinct from Apple's potentially purgeable availability estimates. Allocation does not establish unique APFS extents or guaranteed reclaimed bytes. See [STORAGE.md](STORAGE.md).
 
-The implementation uses bulk names/flags enumeration, compiled path boundaries, no-follow descriptors, a synchronous thread policy preventing dataless materialization, explicit metadata gates, regular-file findings, Foundation total allocated size, and bounded per-module orchestration. Read [SCANNING.md](SCANNING.md) for the decision rationale, limits, scheduling, and counting semantics.
+Application management is a conservative reviewed bundle move. Discovery reads bounded metadata under normal app locations. Removal accepts only eligible current-user-owned `.app` trees under `/Applications` or `~/Applications`, with complete descendant checks and repeated activity observations. System/self apps and linked/shared/dataless/protected/unsupported trees are refused. Common symlinked frameworks therefore remain ineligible.
 
-The optional schema-1 Boolean `skipExcludedFromBackup` defaults to false. No protected roots or match modes are added. Direct files have depth 1; directories at the maximum depth are reported as limited, never emitted as findings. Overlapping paths and hard links count once, with deterministic rule ownership. APFS clone sharing is not quantified, and reported allocation is not a claim of bytes that deletion would free.
+App directories have separate authority, staging, authenticated `application-removal-v1` sessions and app-specific undo. They do not weaken file-only ordinary cleanup. Preferences, licences, related caches, application support, vendor services and exhaustive leftovers are retained. See [APPLICATIONS.md](APPLICATIONS.md).
 
-The brief's request to synthesize actual dataless files cannot be met by setting SF_DATALESS on ordinary unprivileged fixtures: the SDK marks it read-only. This checkpoint uses injected flags/cloud metadata and explicit operation-order tests, supplemented by actual policy-restoration and ordinary-file checks. Genuine provider integration remains a separate prerequisite to broader enabled rules and distribution.
+## Journaling and residual risk
 
-## Phase 3 scope and review
+Removal/recovery actors keep filesystem operations synchronous inside the no-materialization scope. Durable prepared/staged records precede Foundation Trash; its verified returned path is then recorded. Undo authenticates the session and requires the exact recorded object, using exclusive no-overwrite moves and no missing-parent creation or cross-volume copy fallback.
 
-The owner authorized Phase 3 by asking to continue after the merged Phase 1 and 2 checkpoints. Development is on `codex/phase-3-removal-recovery`. Its synthetic suite and guarded ordinary-file Foundation Trash/public-undo integration passed CI. Owner acceptance remains pending in [draft PR 3](https://github.com/iamcaglardogan/racket/pull/3). Phase 4 has not started.
+HMAC-SHA256 journals use Apple's CryptoKit and private local storage. They detect corruption/changes without the key, not same-user forgery, confidentiality or truncation to an authenticated prefix. Same-user interference and Foundation's final pathname race remain. A failed final record can require manual recovery; matching filenames never justify guessing a destination. [REMOVAL.md](REMOVAL.md) describes those states.
 
-`RemovalEngine` and `UndoService` are actors whose filesystem operations remain synchronous under the no-materialization thread policy. Removal accepts an explicit reviewed selection of at most 256 observed files, rechecks current rule scope and metadata, and requires ordinary single-link files owned by the current non-root user. The scanner now retains its complete internal metadata fingerprint; manufactured findings without that observation cannot enter a removal session.
+## Distribution and evidence
 
-Each file is first moved with an exclusive descriptor-relative rename into a private `.racket-staging` reservation inside its existing safe root. That name is excluded from rule declarations and findings. After identity revalidation and durable records, the sole production Trash call uses Foundation. This capture narrows exposure to replacement at the original name, but it neither closes Foundation's final pathname race nor isolates other processes running as the same user.
+The implementation environment has no valid Developer ID signing identity. Local packaging uses ad-hoc signatures, universal ZIP/DMG archives, exact-byte checksums and extracted-bundle manifests. It is explicitly labelled a **local preview**, not Apple notarized or Homebrew-installable. A credential-gated notarization workflow and cask template are implemented, but have no successful public-release claim. See [DISTRIBUTION.md](DISTRIBUTION.md).
 
-`ManifestStore` appends bounded NDJSON records authenticated with HMAC-SHA256 using Apple's CryptoKit framework. A session header records app and rule-set versions; each event records intent or outcome with paths, rule ID, allocated size, and file identity. Private file modes, no-follow opens, cross-instance file locks, and `fsync` protect the journal boundary. This introduces no third-party package. Local authentication does not provide confidentiality, prevent same-user forgery, or detect truncation to a complete authenticated prefix.
+Recorded integrated checks passed 345 Core tests in SwiftPM/Xcode plus 3 Xcode app-flow tests. Final checks for the exact app/package belong in [VERIFICATION-2026-10-16.md](VERIFICATION-2026-10-16.md). Local observations reported macOS 27.0.1 (26A434), Xcode 27.0 (27A266a), Apple Swift 6.4 and Apple Clang 21. These do not establish macOS 14/Intel runtime, genuine cloud providers or live app-bundle Trash behavior. Native controls, accessibility labels and Command-1–7/R/F shortcuts are implemented; test-host rendering is not pointer/VoiceOver or compliance verification.
 
-Undo authenticates and validates the full session history before moving any file. It requires a recorded and verified source, refuses destination conflicts, creates no missing original parent, and never guesses a Trash path by name. Interrupted records remain conservative; a final record failure can require manual recovery. Both services stop processing further items when a journal write fails.
-
-The scope excludes directory removal, multi-link files, elevated privileges, a helper, new cleanup rules, product views, and snapshots. XCTest and local checks use private temporary homes, real Darwin namespace operations and manifests, and a fake Trash transport. They do not exercise a developer’s home, real Trash, or cloud storage. A separate guarded CI integration passed an ordinary-file round trip through actual Foundation Trash and public `UndoService`, using the public current-user APIs under a new synthetic OS account in a disposable GitHub-hosted macOS VM. The account setup assumes no concurrent account creation, and preflight is not an atomic reservation. Foundation’s destination is checked but cannot be pinned by the public API. Provider behavior remains unverified. Read [REMOVAL.md](REMOVAL.md) for failure states, recovery limits, and platform references.
-
-## Verification status
-
-The Phase 1 headless core compiles locally. A limited prototype smoke check on this Mac passed ordinary-file validation, unchanged receipt revalidation, symlink-ancestor refusal, FIFO refusal, and replacement refusal. It is not execution of the complete XCTest suite. [CI run 34125991610](https://github.com/iamcaglardogan/racket/actions/runs/34125991610) passed all 62 tests through both SwiftPM and Xcode, source-policy checks, and the universal app build and architecture verification.
-
-XCTest requires a suitable toolchain; Command Line Tools alone are not sufficient on every installation. CI uses Xcode 16.4 on macOS 15 and checks both the package and application test entry points and universal binary architectures. The target minimum is macOS 14; runtime testing on macOS 14 is still outstanding. The source-policy check rejects selected forbidden APIs and module imports as a guardrail, not a proof of all runtime behavior.
-
-Application presence does not verify a cleanup rule. Cache paths, project attribution, running-process behavior, and deletion safety have not been verified. No cache rule is enabled or shipped.
-
-Phase 2 has 146 XCTest cases in total. The updated core compiled locally, source guardrails passed, and 57 narrow metadata/walker/parser smoke cases passed against synthetic fixtures. [Phase 2 CI run 34165070143](https://github.com/iamcaglardogan/racket/actions/runs/34165070143) passed all 146 cases in both test runners, source guardrails, and the universal build; the owner accepted the checkpoint and explicitly approved its merge. Those XCTest cases neither scan a developer’s real home directory nor delete their fixtures.
-
-[Phase 3 PR CI run 34575529716](https://github.com/iamcaglardogan/racket/actions/runs/34575529716), at `780a4ad`, passed all 226 XCTest cases in each of SwiftPM and Xcode, source guardrails, the universal `arm64`/`x86_64` build, and entitlements validation. A separate local narrow harness passed 76 cases; it is not XCTest execution. The same run passed the guarded live integration: the ordinary file retained its original inode and bytes through actual Foundation Trash and public undo, and the reopened journal contained all five authenticated removal/restore actions. [TESTING.md](TESTING.md) records the evidence boundaries and remaining platform gaps.
-
-## Interface proposal for later review
-
-The naming discussion explored metal, smoke-grey, and a restrained burgundy accent. The original brief proposes cool paper neutrals and a desaturated mineral accent. Neither palette is an approved design. Resolve the visual direction in Phase 5, retaining readable tabular storage figures and project-focused cache lists. Every finding must show its path, allocated size, rule reason, and Reveal in Finder action. A single restrained scan-completion transition may create the visual signature, with Reduce Motion support.
-
-Write and review `DESIGN.md` and the token system in Phase 5 before implementing views. This proposal is not a completed design or approval to bypass the earlier safety phases.
+Historical accepted Phases 1–3 built the rule/path, scanner and ordinary-file transaction foundations. Phase 4 added producer checks and pure creative grouping. Historical CI counts progressed through 62, 146, 226 and 281 tests, with the ordinary-file live Foundation round trip passing in the hosted disposable account. These are historical baselines, not tests of the later preview. [TESTING.md](TESTING.md) preserves their source links and scope.

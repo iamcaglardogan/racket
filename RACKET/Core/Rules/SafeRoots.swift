@@ -15,7 +15,15 @@ public struct SafeRoots: Sendable {
         let home = try Self.normalizeAbsolute(homeDirectory)
         guard home != "/" else { throw PathGuardError.invalidPath }
         self.homeDirectory = home
-        paths = [home + "/Library/Caches", home + "/Library/Logs"]
+        paths = [
+            home + "/Library/Caches", home + "/Library/Logs",
+            // Only generated Clang modules. The rest of DerivedData contains
+            // package checkouts and other material that is outside this policy.
+            home + "/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
+            // npm's content-addressed package cache; never .npmrc, _npx,
+            // node_modules, lockfiles, or project source directories.
+            home + "/.npm/_cacache"
+        ]
     }
 
     /// Validates declarations only. Existing items still need PathGuard.

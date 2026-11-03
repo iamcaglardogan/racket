@@ -224,8 +224,10 @@ private struct ScanFlagsBuffer {
     var flags: UInt32 = 0
 }
 
-private func freshScanURL(_ path: String) -> URL {
-    var url = URL(fileURLWithPath: path, isDirectory: true)
+func freshScanURL(_ path: String) -> URL {
+    // Preserve both URL.path and the underlying filesystem representation. The
+    // String-path constructor can normalize Unicode before metadata lookup.
+    var url = path.withCString { URL(fileURLWithFileSystemRepresentation: $0, isDirectory: true, relativeTo: nil) }
     url.removeAllCachedResourceValues()
     return url
 }

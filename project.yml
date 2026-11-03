@@ -43,6 +43,8 @@ targets:
         PRODUCT_NAME: RACKET
         INFOPLIST_KEY_CFBundleDisplayName: RACKET
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026 El Chedo Production. MIT licensed."
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: RACKET/Resources/RACKET.entitlements
     dependencies:
       - target: RacketCore
@@ -71,6 +73,21 @@ targets:
     dependencies:
       - target: RacketCore
 
+  RacketAppTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: AppTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: "$(RACKET_BUNDLE_PREFIX).RacketAppTests"
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/RACKET.app/Contents/MacOS/RACKET"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+    dependencies:
+      - target: RACKET
+      - target: RacketCore
+
 schemes:
   RACKET:
     build:
@@ -78,11 +95,15 @@ schemes:
         RACKET: all
         RacketCore: all
         RacketCoreTests: [test]
+        RacketAppTests: [test]
     run:
       config: Debug
     test:
       config: Debug
+      environmentVariables:
+        RACKET_TEST_WORKSPACE: "1"
       targets:
         - name: RacketCoreTests
+        - name: RacketAppTests
     archive:
       config: Release

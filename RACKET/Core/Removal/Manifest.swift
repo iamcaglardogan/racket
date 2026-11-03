@@ -176,6 +176,35 @@ public final class ManifestStore: @unchecked Sendable {
         }
     }
 
+    /// Enumerates canonical journal identifiers only. Each journal must still be
+    /// authenticated with read before it is displayed or used for recovery.
+    /// A bounded descriptor-relative walk never follows a supplied pathname.
+    public func sessionIDs(limit: Int = 512) throws -> [UUID] {
+        guard (1...512).contains(limit) else { throw ManifestError.limitExceeded }
+        return try serialized {
+            let descriptor = try self.openCurrentDirectory()
+            defer { Darwin.close(descriptor) }
+            var identifiers: [UUID] = []
+            var visited = 0
+            while true {
+                let entries = try BulkDirectoryReader.next(descriptor: descriptor)
+                if entries.isEmpty { break }
+                visited += entries.count
+                guard visited <= 10_000 else { throw ManifestError.limitExceeded }
+                for entry in entries where entry.name.hasSuffix(".jsonl") {
+                    guard let id = UUID(uuidString: String(entry.name.dropLast(6))),
+                          entry.name == self.fileName(id) else { continue }
+                    guard entry.error == 0, entry.flags.map({ $0 & UInt32(SF_DATALESS) == 0 }) == true else {
+                        throw ManifestError.unsafeMetadata
+                    }
+                    identifiers.append(id)
+                    guard identifiers.count <= limit else { throw ManifestError.limitExceeded }
+                }
+            }
+            return identifiers.sorted { $0.uuidString < $1.uuidString }
+        }
+    }
+
     /// Exports the original authenticated NDJSON, only after full verification.
     public func export(_ sessionID: UUID) throws -> Data {
         try serialized {
